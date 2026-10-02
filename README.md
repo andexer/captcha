@@ -114,7 +114,3 @@ try {
 ## Licencia
 
 MIT. Úsalo, estúdialo y modifícalo libremente. El texto completo está en [LICENSE](LICENSE).
-
-## Cómo colaborar
-
-Las Pull Requests son bienvenidas. Antes de abrir una: `composer install` y `composer check` (la misma puerta que CI). Si el cambio toca el comportamiento observable, actualiza también el `CHANGELOG.md` en `[No publicado]`. Reporta los fallos de seguridad por el canal privado de [Advisories de GitHub](https://github.com/andexer/captcha/security/advisories/new) — la política está en [SECURITY.md](SECURITY.md).
