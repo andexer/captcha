@@ -1,10 +1,26 @@
 # Changelog
 
 Las novedades del paquete. Formato *Keep a Changelog* y versionado *SemVer*.
-Las versiones se cortan con etiquetas de git (`v1.0.0`), y `bin/captcha --version`
-lee la etiqueta; sin ella imprime `1.0.0+no-version-set`.
+Las versiones se cortan con etiquetas de git (`v1.0.0-rc.1`), y
+`bin/captcha --version` lee la etiqueta; sin ella imprime la versión que
+declare el host que instaló el paquete.
 
 ## [No publicado]
+
+Todavía no hay nada en este apartado. La última versión cortada está abajo.
+
+## [1.0.0-rc.1] - 2026-10-01
+
+**Candidata de publicación, no estable.** Semánticamente es una pre-release de la
+1.0.0: la API pública se considera cerrada a partir de aquí, pero puede cambiar
+en la 1.0.0 si algo sale mal. Para instalarla hay que pedir la estabilidad
+explícitamente, porque Composer no ofrece las pre-releases por defecto:
+
+```bash
+composer require andexer/captcha:1.0.0-rc.1
+```
+
+Quien prefiera la última estable cuando la haya usará `^1.0` sin más.
 
 ### Añadido
 
@@ -28,6 +44,11 @@ lee la etiqueta; sin ella imprime `1.0.0+no-version-set`.
 
 ### Cambiado
 
+- El nombre del paquete pasa de `captcha/captcha` a `andexer/captcha`, para que el
+  vendor coincida con la cuenta que lo mantiene. Como el vendor forma parte de la
+  ruta de instalación, la cascada de autoload sigue resolviendo en el mismo número
+  de niveles; solo cambian la constante del nombre, las menciones en documentación
+  y la instrucción de `require`.
 - `install` escribe en la raíz del proyecto —el directorio con `composer.json`,
   buscado hacia arriba desde donde se lanza el comando— en lugar del directorio de
   trabajo. Lanzado desde un subdirectorio, los ficheros ya no quedan descuadrados
@@ -89,5 +110,5 @@ lee la etiqueta; sin ella imprime `1.0.0+no-version-set`.
   `install`. El pegamento que generan es material de la aplicación anfitriona, así
   que queda fuera del control de versiones del paquete.
 
-Las versiones anteriores a la primera etiqueta no tienen historial publicado: este
-fichero arranca con la primera versión que se etiquete.
+Las versiones anteriores a `1.0.0-rc.1` no tienen historial publicado: este fichero
+arranca con la primera versión que se etiquete.

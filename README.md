@@ -60,16 +60,30 @@ composer require andexer/captcha
 
 El paquete se autoloada por PSR-4 (`Captcha\` → `src/`) y expone el binario `vendor/bin/captcha`.
 
+#### Versión actual: candidata de publicación
+
+Lo publicado ahora es **`1.0.0-rc.1`**, una pre-release, no una estable. Composer no
+ofrece pre-releases salvo que se pida la estabilidad, así que el comando de arriba
+sin versión **no instala la rc**; hay que nombrarla:
+
+```bash
+composer require andexer/captcha:1.0.0-rc.1
+```
+
+Qué significa en la práctica: la API pública se da por cerrada a partir de aquí,
+pero la 1.0.0 estable puede corregir algo si la rc resulta tener un fallo. En una
+aplicación en producción, espera a la etiqueta `v1.0.0` y usa `^1.0` como siempre.
+
 #### Instalar desde el código fuente
 
-Mientras el paquete no esté publicado en Packagist, o si quieres una versión que aún no has etiquetado, declara el repositorio antes de requerirlo:
+Para trabajar contra una versión que aún no has etiquetado, declara el repositorio antes de requerirlo:
 
 ```bash
 composer config repositories.andexer/captcha git https://github.com/andexer/captcha.git
 composer require andexer/captcha:@dev
 ```
 
-`@dev` es obligatorio para las ramas de desarrollo: Composer solo acepta una versión sin etiqueta si se pide de forma explícita. En cuanto exista una etiqueta `vX.Y.Z`, lo normal es `composer require andexer/captcha:^1.0`.
+`@dev` es obligatorio para las ramas de desarrollo: Composer solo acepta una versión sin etiqueta si se pide de forma explícita.
 
 ### 2. Consola
 
@@ -848,9 +862,20 @@ composer check                  # la puerta local: nada se etiqueta sin esto en 
 # actualiza CHANGELOG.md con lo que entra en la versión y ciérrala
 git tag -a v1.0.0 -m "v1.0.0"
 git push --follow-tags
+gh release create v1.0.0 --title "v1.0.0" --generate-notes
 ```
 
-Sin etiqueta, `--version` imprime `1.0.0+no-version-set` (usa la versión declarada en el `composer install` del host, no la tuya). La etiqueta es también lo que fija Packagist.
+Sin etiqueta, `--version` no puede saber nada: imprime `desconocida (no instalada con Composer)` cuando el paquete no está instalado con Composer, y la versión que declaraste en el host cuando sí lo está. La etiqueta es también lo que fija Packagist, que sincroniza solo con cada push.
+
+**Pre-releases.** Una candidata se etiqueta igual, con el sufijo SemVer completo:
+
+```bash
+git tag -a v1.0.0-rc.1 -m "v1.0.0-rc.1"
+git push --follow-tags
+gh release create v1.0.0-rc.1 --prerelease --title "v1.0.0-rc.1" --generate-notes
+```
+
+Dos consecuencias que conviene no olvidar: `gh release create` **sin** `--prerelease` publica una rc como si fuera estable y la marca en Packagist como `stable`, así que el flag es lo que separa las dos cosas; y quien instala la rc tiene que pedir la estabilidad a mano (`composer require andexer/captcha:1.0.0-rc.1`), porque Composer no ofrece pre-releases por defecto. Cuando llegue la `v1.0.0` estable, `composer require andexer/captcha` empezará a resolverla sin tocar nada.
 
 ---
 
