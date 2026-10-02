@@ -1,0 +1,108 @@
+includes:
+    # Reglas adicionales de php-pro: strict-rules (tipos que se comparan con
+    # operadores laxos, arraysstrict, funciones que devuelven void y se usan,
+    # etc.) y deprecation-rules (llamadas a APIs retiradas).
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
+
+parameters:
+    level: 9
+    paths:
+        - src
+    excludePaths:
+        # Demos y recetas: no son código de producción y ya no se distribuyen
+        # (excluidos en .gitattributes), pero se mantienen en el repo para
+        # desarrollo. Varias exigen un framework anfitrión que no está instalado.
+        - src/examples
+        # Scripts de E/S sin PSR-4, fuera del árbol de clases. Ya no se
+        # distribuyen (excluidos en .gitattributes), pero se mantienen en el
+        # repo para desarrollo.
+        - src/public
+    treatPhpDocTypesAsCertain: false
+
+    # Un ignore que deja de encontrar su patrón es un ignore que ya no
+    # documenta nada: sin esto, las entradas de abajo se pudrirían en
+    # silencio conforme el código cambia.
+    reportUnmatchedIgnoredErrors: true
+    checkUninitializedProperties: true
+
+    ignoreErrors:
+        # Sondeos deliberados de kernels de framework opcionales. La clase no
+        # existe en este paquete por definición: la pregunta es precisamente
+        # si el anfitrión la tiene ya cargada. Referenciarla como ::class hace
+        # que PHPStan intente resolverla y falle.
+        -
+            message: '#Class (CodeIgniter\\CodeIgniter|Illuminate\\Foundation\\Application|Symfony\\Component\\HttpKernel\\Kernel|Cake\\Core\\Application|yii\\BaseYii) not found#'
+            paths:
+                - src/Runtime/Host.php
+
+        # Comprobaciones defensivas CONTRA superglobales, que el paquete trata
+        # como entrada no confiable. Los stubs de PHPStan declaran $_POST y
+        # session_get_cookie_params() como arrays con todas las claves
+        # presentes, así que las ve como dead code; en runtime un anfitrión
+        # puede haber pisado la superglobal, y el otro caso depende de la
+        # versión de PHP. Se conservan a propósito: quitarlas cambiaría la
+        # postura fail-safe del paquete por un beneficio solo estático.
+        -
+            message: '#Call to function is_array\(\) with array<mixed> will always evaluate to true#'
+            path: src/Http/Globals.php
+        -
+            message: "#Offset '(httponly|samesite)' on array\\{.*\\} on left side of \\?\\? always exists and is not nullable#"
+            path: src/Http/SessionCookie.php
+        -
+            message: "#Strict comparison using !== between 'Lax'.* and '' will always evaluate to true#"
+            path: src/Http/SessionCookie.php
+
+        # imagecolorallocate() devuelve int|false, pero solo cuando no queda
+        # memoria para una paleta paletizada. El renderizador trabaja siempre
+        # sobre imágenes truecolor, donde la paleta ya no existe y la reserva
+        # siempre se concede, así que el false es imposible por construcción.
+        #
+        # GdRenderer ya no aparece aquí: su único imagecolorallocate() está
+        # detrás de un is_int() explícito, que es la forma correcta de estrechar
+        # un int|false. PHPStan avisa si esta entrada deja de encontrar su
+        # patrón, así que sobrarla también es un error.
+        -
+            paths:
+                - src/Renderer/Support/Distortion.php
+            message: '#expects int, int<0, max>\|false given#'
+
+        # Despacho mágico de la fachada. __call y __callStatic derivan el
+        # nombre del método a runtime y lo invocan expandiendo $arguments,
+        # que PHP no tipa y el analizador solo ve como array<int, mixed>. No
+        # hay manera de que lo siga sin reescribir el despacho como once
+        # ramas explícitas, algo que contradice el diseño documentado de la
+        # fachada (un método estático y otro de instancia no pueden llamarse
+        # igual). Lo que sí se comprueba está al otro lado: las firmas
+        # públicas están declaradas con @method en la cabecera de la clase y
+        # verificadas por el test de firmas.
+        #
+        # strict-rules añade dos identificadores al mismo hecho: el nombre
+        # variable de __call y las llamadas estáticas que salen de la propia
+        # fachada (Captcha::config() y compañía, que llegan aquí por
+        # __callStatic). No son errores de tipado sino el precio del despacho,
+        # y silenciarlos sin más dejaría fuera justo la capa que el paquete
+        # garantiza con tests.
+        -
+            message: '#of method Captcha\\Captcha::\w+Instance\(\) expects .*, mixed given\.#'
+            path: src/Captcha.php
+        -
+            message: '#(Variable method call on (Captcha\\Captcha|\$this\(Captcha\\Captcha\))|Dynamic call to static method Captcha\\Captcha::\w+\(\))#'
+            paths:
+                - src/Captcha.php
+                - src/Console/Doctor.php
+                - src/Http/Endpoint.php
+                - src/Security/CaptchaGuard.php
+
+        # El mismo límite del spread, en la otra dirección. fromArray() deja
+        # los argumentos ya coercionados a su tipo (los enteros valen int, los
+        # flags bool, difficulty un enum...) y los reparte en un array<string,
+        # mixed> para invocar el constructor con argumentos con nombre, que es
+        # lo que evita mantener 23 variables intermedias. PHP no comprueba el
+        # spread en runtime y el analizador solo ve array<string, mixed>, así
+        # que el error sale en el constructor, no en quien lo llama. Lo que sí
+        # se comprueba está donde el tipo se fija: cada lector convierte o
+        # lanza, y el constructor vuelve a validar rangos y coherencias.
+        -
+            message: '#of class Captcha\\Config\\Config constructor expects int, mixed given\.#'
+            path: src/Config/Config.php

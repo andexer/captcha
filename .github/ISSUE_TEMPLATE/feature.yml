@@ -1,0 +1,25 @@
+name: Petición
+description: "Falta algo, o algo se puede hacer mejor."
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: El problema
+      description: "Qué intentas hacer y por qué hoy no se puede. No la solución: el cómo se discute luego."
+    validations:
+      required: true
+
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Lo que propones
+      description: "Cómo te gustaría resolverlo, si ya lo tienes pensado."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: "Alternativas que has mirado"
+      description: "Incluye si llegó a implementarse en tu proyecto con una clase propia."

@@ -1,0 +1,93 @@
+{
+  "name": "andexer/captcha",
+  "description": "Captcha numérico de imagen para PHP 8.2+, sin dependencias de runtime más allá de ext-gd",
+  "homepage": "https://github.com/andexer/captcha",
+  "type": "library",
+  "license": "MIT",
+  "keywords": [
+    "captcha",
+    "security",
+    "gd",
+    "numeric",
+    "image"
+  ],
+  "authors": [
+    {
+      "name": "Andexer Arvelo",
+      "email": "arvelofalcon@gmail.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/andexer/captcha/issues",
+    "source": "https://github.com/andexer/captcha",
+    "docs": "https://github.com/andexer/captcha/blob/main/README.md",
+    "security": "https://github.com/andexer/captcha/security/advisories/new"
+  },
+  "require": {
+    "php": ">=8.2",
+    "ext-gd": "*"
+  },
+  "require-dev": {
+    "ext-dom": "*",
+    "ext-mbstring": "*",
+    "ext-xml": "*",
+    "friendsofphp/php-cs-fixer": "^3.0",
+    "phpstan/phpstan": "^2.2",
+    "phpstan/phpstan-deprecation-rules": "^2.0",
+    "phpstan/phpstan-strict-rules": "^2.0",
+    "phpunit/phpunit": "^11.0"
+  },
+  "bin": [
+    "bin/captcha"
+  ],
+  "autoload": {
+    "psr-4": {
+      "Captcha\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Captcha\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "php vendor/bin/phpunit",
+    "test:coverage": [
+      "@php vendor/bin/phpunit --coverage-text --coverage-clover coverage/clover.xml",
+      "@php tools/coverage.php coverage/clover.xml 90"
+    ],
+    "cs:check": "php vendor/bin/php-cs-fixer fix --dry-run",
+    "cs:fix": "php vendor/bin/php-cs-fixer fix",
+    "static": "php vendor/bin/phpstan analyse --no-progress",
+    "assets:min": "php tools/minify.php",
+    "config:templates": "php tools/render-templates.php",
+    "assets:templates": "php tools/render-templates.php",
+    "smoke": "php tools/smoke.php",
+    "check": [
+      "@test",
+      "@cs:check",
+      "@static"
+    ],
+    "captcha": "php bin/captcha",
+    "captcha:install": "php bin/captcha install",
+    "doctor": "php bin/captcha doctor"
+  },
+  "scripts-descriptions": {
+    "test": "Suite de PHPUnit: tests/Unit + tests/Integration",
+    "test:coverage": "Suite con informe Clover y puerta de umbral del 90 % (necesita PCOV o Xdebug)",
+    "cs:check": "php-cs-fixer en modo comprobación: falla si hay algo que formatear",
+    "cs:fix": "Aplica el formateador",
+    "static": "PHPStan nivel 9 sobre src/",
+    "assets:min": "Regenera src/resources/assets/captcha.min.{css,js} desde la fuente legible",
+    "config:templates": "Regenera src/app/Config/templates/*.php desde el fragmento de opciones",
+    "assets:templates": "Alias de config:templates, que es su nombre actual",
+    "smoke": "Prueba la API pública en una app que ya instaló el paquete: php tools/smoke.php /ruta",
+    "check": "Puerta local completa: test + cs:check + static",
+    "captcha": "La CLI del paquete sobre sí misma: php bin/captcha",
+    "captcha:install": "Instala config y pegamento en el proyecto actual; escribe ficheros (añade --dry-run para ver el plan)",
+    "doctor": "Diagnóstico del entorno: PHP, GD, config descubierto, storage y postura; no escribe nada"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

@@ -1,0 +1,54 @@
+# Composer / PHP
+/vendor/
+composer.lock
+/coverage/
+
+# Caches y tooling
+/.phpunit.cache/
+/.phpunit.result.cache
+.php-cs-fixer.cache
+.php-cs-fixer.php
+
+# Editor (config personal)
+/.phpactor.json
+
+# DDEV (entorno de desarrollo local): nunca se versiona
+/.ddev/
+
+# Inteligencia artificial / agentes / skills
+AGENTS.md
+.claude/
+.cursor/
+.windsurf/
+.codex/
+.continue/
+.agents/
+.opencode/
+.roo/
+.skills/
+skills/
+**/skills/
+copilot-instructions.md
+.github/copilot-instructions.md
+skills-lock.json
+
+# SO / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Pegamento que emite `captcha install` si lo ejecutas sobre este repo
+# (`composer setup` sin argumentos, o el bin a mano). No es código del
+# paquete: sin esto `git add -A` lo subiría y, como .gitattributes no
+# excluye estas rutas, acabaría dentro del archivo que se distribuye.
+# El guard cae en src/ porque así lo pide el destino que declara
+# Console\Integration::PER_FRAMEWORK para el framework plain.
+/app/
+/public/
+/src/CaptchaGuard.php
+
+# PNG que deja el test visual. NamingTest escanea todos los ficheros de
+# tests/ sin filtro de extensión, así que un PNG suelto rompe la suite.
+/tests/Visual/output/

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         executionOrder="depends,defects"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         displayDetailsOnTestsThatTriggerErrors="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnNotice="true"
+         failOnDeprecation="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+    <!--
+      El alcance de la cobertura es producción a propósito. src/examples y
+      src/public ya no se distribuyen (excluidos en .gitattributes), pero se
+      mantienen en el repo para desarrollo. src/app son plantillas y fragmentos
+      de configuración que se copian al host, no se ejecutan. Medirlos hundiría
+      el porcentaje de lo que sí decide el paquete. tools/coverage.php es la
+      puerta que aplica el umbral sobre este filtro.
+    -->
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+        <exclude>
+            <directory>src/app</directory>
+            <directory>src/examples</directory>
+            <directory>src/public</directory>
+        </exclude>
+    </source>
+</phpunit>

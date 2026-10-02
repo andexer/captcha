@@ -1,0 +1,440 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+*  Consola de captcha: `vendor/bin/captcha <comando>`.
+*
+*  Este fichero solo hace E/S: lee argv, reparte al comando y escribe en
+*  STDOUT o STDERR. Nada de lo que se decide aquí es lógica del captcha, por
+*  eso vive en Captcha\Console: lo que se puede probar sin lanzar un proceso,
+*  se prueba sin lanzar un proceso. Va fuera de src/ porque el contrato del
+*  paquete prohíbe echo y superglobales allí.
+*
+*  El autoload apunta al proyecto que instaló el paquete, así que los comandos
+*  operan sobre la app anfitriona y no sobre el propio paquete.
+*/
+
+use Captcha\Console\Argv;
+use Captcha\Console\Artifact;
+use Captcha\Console\ConsoleException;
+use Captcha\Console\Doctor;
+use Captcha\Console\Installer;
+use Captcha\Console\Registry;
+use Captcha\Console\Severity;
+use Captcha\Console\Style;
+use Captcha\Console\Usage;
+use Captcha\Exception\InvalidConfigException;
+
+/*
+*  Autoload del proyecto anfitrión (bin instalado en vendor/bin) o del
+*  propio paquete en desarrollo (vendor/ local).
+*
+*  La global va primera porque Composer no siempre deja un symlink en
+*  vendor/bin: cuando no puede (Windows, config.bin-compat: full, un
+*  repositorio path sin symlink) escribe un proxy y publica ahí la ruta real
+*  del autoload. Sin leerla, __DIR__ es vendor/bin y las dos rutas de abajo
+*  fallan: la consola no arranca en una instalación perfectamente válida.
+*/
+$candidatos = [
+    $GLOBALS['_composer_autoload_path'] ?? null,
+    __DIR__ . '/../../../autoload.php',
+    __DIR__ . '/../vendor/autoload.php',
+];
+
+foreach ($candidatos as $autoload) {
+    if (is_string($autoload) && is_file($autoload)) {
+        require $autoload;
+
+        break;
+    }
+}
+
+if (!class_exists(Argv::class)) {
+    fwrite(STDERR, "No se encontró el autoload de Composer (vendor/autoload.php).\n");
+    exit(1);
+}
+
+if (PHP_SAPI !== 'cli') {
+    fwrite(STDERR, "Este script solo puede ejecutarse desde la CLI.\n");
+    exit(1);
+}
+
+/** Tokens de la invocación, o lista vacía si argv no está disponible. */
+$argv = $argv ?? [];
+
+try {
+    $linea = Argv::parse($argv);
+} catch (ConsoleException $excepcion) {
+    captcha_error($excepcion, Style::plain());
+
+    exit($excepcion->exitCode());
+}
+
+$estilo = captcha_estilo($linea);
+$silencioso = $linea->flag('quiet');
+
+/*
+*  Las banderas globales se atienden antes de repartir: `--version` vale igual
+*  con y sin comando detrás, y `--help` con comando es la ayuda de ese comando.
+*/
+if ($linea->flag('version')) {
+    exit(captcha_imprime([Registry::PACKAGE . ' ' . Registry::version()], $silencioso));
+}
+
+if ($linea->flag('help') || $linea->command === null) {
+    exit($linea->command === null
+        ? captcha_imprime(Usage::overview($estilo), $silencioso)
+        : captcha_imprime(Usage::command($linea->command, $estilo), $silencioso));
+}
+
+try {
+    /*
+    *  Se validan los posicionales de todos los comandos, también los que no
+    *  declaran ninguno: `doctor extra` tiene que fallar igual que lo que
+    *  hace `install a b`, y no hay forma de saberlo sin mirar el argv.
+    */
+    $linea->argumentsByName();
+
+    exit(match ($linea->commandName()) {
+        'install' => captcha_install($linea, $estilo, $silencioso),
+        'doctor' => captcha_doctor($linea, $estilo),
+        'list' => captcha_imprime(Usage::overview($estilo), $silencioso),
+        'help' => captcha_ayuda($linea, $estilo, $silencioso),
+        default => 0,
+    });
+} catch (ConsoleException $excepcion) {
+    captcha_error($excepcion, $estilo);
+
+    exit($excepcion->exitCode());
+} catch (InvalidConfigException $excepcion) {
+    /*
+    *  Framework desconocido o plantilla rota: código de error, para que un
+    *  script o un despliegue no se quede con la impresión de que fue bien.
+    */
+    fwrite(STDERR, $excepcion->getMessage() . PHP_EOL);
+
+    exit(1);
+}
+
+/** Vuelca una lista de líneas ya formateadas en STDOUT. */
+function captcha_imprime(array $lineas, bool $silencioso = false): int
+{
+    if (!$silencioso) {
+        foreach ($lineas as $linea) {
+            fwrite(STDOUT, $linea . PHP_EOL);
+        }
+    }
+
+    return 0;
+}
+
+/** Escribe el error y su pista en STDERR, con el estilo que toque. */
+function captcha_error(ConsoleException $excepcion, Style $estilo): void
+{
+    /*
+    *  El color se decide sobre el stream donde se va a escribir, no sobre el de
+    *  la salida: `captcha doctor > informe.txt` deja STDOUT redirigido y STDERR
+    *  en la terminal, o al revés. Si se decidiera una sola vez mirando STDOUT,
+    *  un error finit a un fichero acabaría con códigos de escape dentro.
+    */
+    $pinta = stream_isatty(STDERR) ? $estilo : Style::plain();
+    fwrite(STDERR, $pinta->failure('  ' . $excepcion->getMessage()) . PHP_EOL);
+
+    $pista = $excepcion->hint();
+
+    if ($pista !== null) {
+        fwrite(STDERR, $pinta->dim('  ' . $pista) . PHP_EOL);
+    }
+}
+
+/**
+ * El color solo se activa si la salida es una terminal de verdad: al
+ * redirigir a un fichero o a una tubería, los códigos de escape ensucian el
+ * texto y no los lee nadie.
+ */
+function captcha_estilo(Argv $linea): Style
+{
+    if ($linea->flag('no-ansi') || !stream_isatty(STDOUT)) {
+        return Style::plain();
+    }
+
+    return new Style(true);
+}
+
+/** `captcha help [comando]`: la ayuda general, o la de un comando. */
+function captcha_ayuda(Argv $linea, Style $estilo, bool $silencioso): int
+{
+    $argumentos = $linea->argumentsByName();
+    $nombre = $argumentos['comando'] ?? null;
+
+    if ($nombre === null) {
+        return captcha_imprime(Usage::overview($estilo), $silencioso);
+    }
+
+    $comando = Registry::find($nombre);
+
+    if ($comando === null) {
+        throw new ConsoleException(
+            sprintf('No hay ningún comando "%s".', $nombre),
+            sprintf(
+                'Comandos disponibles: %s.',
+                implode(', ', array_map(
+                    static fn($comando): string => $comando->name,
+                    Registry::commands(),
+                )),
+            ),
+        );
+    }
+
+    return captcha_imprime(Usage::command($comando, $estilo), $silencioso);
+}
+
+/** `captcha install [framework]`: copia la plantilla al proyecto actual. */
+function captcha_install(Argv $linea, Style $estilo, bool $silencioso): int
+{
+    $framework = captcha_framework($linea);
+    $raiz = captcha_raiz();
+    $simula = $linea->flag('dry-run');
+    $artefactos = Installer::artifacts($raiz, $framework);
+    $lineas = [captcha_cabecera($raiz, $simula, $estilo)];
+    $grupos = [];
+    $primero = true;
+
+    foreach ($artefactos as $artefacto) {
+        $lineas[] = captcha_escribe(
+            $artefacto,
+            $primero ? 'Config creado' : 'Integración creada',
+            $estilo,
+            $framework,
+            $simula,
+        );
+        $primero = false;
+
+        if ($artefacto->hasNotes()) {
+            $grupos[] = $artefacto->notes;
+        }
+    }
+
+    $lineas[] = '';
+    $lineas = array_merge($lineas, captcha_notas($grupos, $estilo));
+
+    return captcha_imprime($lineas, $silencioso);
+}
+
+/**
+ * El framework de las dos formas admitidas, con el conflicto declarado.
+ *
+ * Darlo de las dos maneras con valores distintos no es una redundancia
+ * tolerable: es una contradicción, y salir con éxito sin decidir cuál gana
+ * dejaría un config en un sitio que nadie pidió.
+ */
+function captcha_framework(Argv $linea): string
+{
+    $argumentos = $linea->argumentsByName();
+    $posicional = $argumentos['framework'] ?? null;
+    $opcion = $linea->value('framework');
+
+    if ($posicional !== null && $opcion !== null && $posicional !== $opcion) {
+        throw new ConsoleException(
+            sprintf(
+                'El framework está escrito dos veces con valores distintos: "%s" y "%s".',
+                $posicional,
+                $opcion,
+            ),
+            'Deja solo una de las dos formas, o repite el mismo valor en las dos.',
+        );
+    }
+
+    return $opcion ?? $posicional ?? 'plain';
+}
+
+/*
+ *  La raíz del proyecto es el directorio que contiene composer.json, buscado
+ *  hacia arriba desde donde se ha lanzado el comando.
+ *
+ *  Sin esto, instalar desde un subdirectorio —`cd src && vendor/bin/captcha
+ *  install`, o un script de CI que cd a donde le conviene— deja el config y el
+ *  pegamento en ese subdirectorio, que es justo el fallo más difícil de
+ *  diagnosticar: la aplicación sigue arrancando y el config no se ve. Es el
+ *  mismo criterio que usa Composer para saber sobre qué proyecto opera.
+ */
+function captcha_raiz(): string
+{
+    $cwd = getcwd();
+
+    if ($cwd === false) {
+        throw new ConsoleException('No se pudo leer el directorio de trabajo actual.');
+    }
+
+    return captcha_busca_raiz($cwd) ?? $cwd;
+}
+
+/** El primer composer.json subiendo desde $directorio, o null si no hay ninguno. */
+function captcha_busca_raiz(string $directorio): ?string
+{
+    for ($actual = $directorio; $actual !== dirname($actual); $actual = dirname($actual)) {
+        if (is_file($actual . '/composer.json')) {
+            return $actual;
+        }
+    }
+
+    return is_file($directorio . '/composer.json') ? $directorio : null;
+}
+
+/** La primera línea de la salida: dónde se opera y si de verdad se escribe. */
+function captcha_cabecera(string $raiz, bool $simula, Style $estilo): string
+{
+    $donde = sprintf('Raíz del proyecto: %s', $raiz);
+
+    return $simula
+        ? $estilo->accent('Simulación:') . ' se muestran los destinos y ' . $donde
+        : $estilo->dim($donde);
+}
+
+/**
+ * Escribe un artefacto del instalador y devuelve la línea que lo resume.
+ *
+ * El "ya existe, no se toca" es la misma política que aplicaba el instalador
+ * cuando solo escribía el config: un fichero de la aplicación anfitriona que
+ * alguien ya editó a mano no se regenera nunca, porque la plantilla es un
+ * esqueleto y pisar el trabajo de quien integró perdería sus ajustes sin avisar.
+ */
+function captcha_escribe(
+    Artifact $artefacto,
+    string $frase,
+    Style $estilo,
+    string $framework,
+    bool $simula,
+): string {
+    if (is_link($artefacto->path)) {
+        captcha_rechaza_enlace($artefacto->path);
+    }
+
+    if (file_exists($artefacto->path)) {
+        return $estilo->warning(sprintf('Ya existe, no se toca (%s):', $framework)) . ' ' . $artefacto->path;
+    }
+
+    if ($simula) {
+        return $estilo->accent(sprintf('Se crearía (%s):', $framework)) . ' ' . $artefacto->path;
+    }
+
+    captcha_vuelca($artefacto);
+
+    return $estilo->success(sprintf('%s (%s):', $frase, $framework)) . ' ' . $artefacto->path;
+}
+
+/*
+ *  Un enlace simbólico en el destino se rechaza en vez de seguirlo.
+ *
+ *  is_file() y file_exists() lo atraviesan, así que un enlace colgado —apuntando
+ *  a algo que todavía no existe— pasa por "no existe" y la escritura terminaría
+ *  creando el fichero fuera del proyecto, donde apunte el enlace. El
+ *  instalador solo escribe dentro de la raíz que ha resuelto, y un destino que
+ *  no es un fichero normal se dice, no se asume.
+ */
+function captcha_rechaza_enlace(string $ruta): never
+{
+    throw new ConsoleException(
+        sprintf('El destino es un enlace simbólico y no se escribe a través de él: %s', $ruta),
+        'Borra el enlace, o deja el destino dentro del proyecto, y vuelve a lanzar el comando.',
+    );
+}
+
+/*
+ *  Escribe el artefacto creando el directorio destino cuando hace falta.
+ *
+ *  Va aparte de captcha_escribe() para que el resumen de una línea no comparta
+ *  función con las tres operaciones de E/S que pueden fallar.
+ *
+ *  El modo 'x' es lo que hace la garantía de "nunca sobrescribe" real: falla si
+ *  el fichero existe en el mismo instante en que se abre, sin la ventana que
+ *  dejaría un is_file() seguido de un file_put_contents(). Solo se comprueba
+ *  antes para poder responder "ya existe" con elegancia; quien decide es el
+ *  open. Y si la escritura se queda a medias, el fichero a medias se borra:
+ *  un config de PHP truncado es un error de sintaxis en la aplicación.
+ */
+function captcha_vuelca(Artifact $artefacto): void
+{
+    $ruta = $artefacto->path;
+    $directorio = dirname($ruta);
+
+    if (!is_dir($directorio) && !mkdir($directorio, 0o755, true) && !is_dir($directorio)) {
+        throw new ConsoleException(sprintf('No se pudo crear el directorio: %s', $directorio));
+    }
+
+    $manejador = fopen($ruta, 'xb');
+
+    if ($manejador === false) {
+        throw new ConsoleException(sprintf('No se pudo escribir: %s', $ruta));
+    }
+
+    /*
+    *  El modo se fija antes de volcar el contenido, no después. fopen() crea con
+    *  0666 menos el umask, así que con un umask permisivo —0000 o 0002, habitual
+    *  en contenedores y en volúmenes compartidos— el config generado, que es un
+    *  PHP que la aplicación incluye, quedaría escribible por cualquier otro
+    *  usuario del sistema: ejecución de código en la app. Fijar 0644 primero
+    *  cierra también la ventana intermedia.
+    */
+    if (!chmod($ruta, 0o644)) {
+        fclose($manejador);
+        unlink($ruta);
+
+        throw new ConsoleException(sprintf('No se pudieron fijar los permisos 0644: %s', $ruta));
+    }
+
+    $escrito = fwrite($manejador, $artefacto->contents);
+    fclose($manejador);
+
+    if ($escrito !== strlen($artefacto->contents)) {
+        unlink($ruta);
+
+        throw new ConsoleException(sprintf('Escritura incompleta, se ha descartado: %s', $ruta));
+    }
+}
+
+/*
+*  Los pasos de registro que el instalador no puede automatizar, agrupados por
+*  artefacto y separados entre sí para que no se lean como un solo bloque.
+*
+*  El grupo se omite entero cuando ningún artefacto trajo notas: en PHP plano la
+*  integración son dos ficheros que se usan sin tocar nada más, y un bloque
+*  "pendientes" vacío solo confundiría.
+*/
+function captcha_notas(array $grupos, Style $estilo): array
+{
+    if ($grupos === []) {
+        return [$estilo->dim('Descomenta las opciones del config que quieras; todas son opcionales.')];
+    }
+
+    $salida = [$estilo->accent('Pendientes de registrar a mano:'), ''];
+
+    foreach ($grupos as $grupo) {
+        foreach ($grupo as $nota) {
+            $salida[] = $nota === '' ? '' : '  ' . $nota;
+        }
+
+        $salida[] = '';
+    }
+
+    array_pop($salida);
+
+    return $salida;
+}
+
+/** `captcha doctor`: el informe del entorno, con su código de salida. */
+function captcha_doctor(Argv $linea, Style $estilo): int
+{
+    $reporte = (new Doctor())->report();
+    $estricto = $linea->flag('strict');
+
+    $salida = $linea->flag('quiet')
+        ? $reporte->renderAtLeast(Severity::Error, $estilo)
+        : $reporte->render($estilo);
+
+    captcha_imprime($salida);
+
+    return $reporte->exitCode($estricto);
+}

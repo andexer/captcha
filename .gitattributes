@@ -1,0 +1,28 @@
+#and this file is only relevant for the distributed archive
+#
+# Qué entra en el archivo que Composer distribuye.
+#
+# Composer descarga el paquete como un archivo generado con `git archive`, y
+# todo lo listado como `export-ignore` se queda atrás. Sin este fichero la app
+# anfitriona recibe el repositorio entero: la suite de pruebas, la
+# configuración de análisis estático y las herramientas de compilación de
+# assets que no necesita para usar la librería. Pesa lo mismo pero parece
+# material de mantenimiento nuestro, y el packagist lo muestra como contenido
+# del paquete.
+#
+# No se excluye `src/app/Config/` ni `src/resources/`: son datos que la
+# biblioteca lee en tiempo de ejecución y sin ellos la instalación no arranca.
+
+/.github          export-ignore
+/AGENTS.md        export-ignore
+/.agents          export-ignore
+/skills-lock.json export-ignore
+/tests            export-ignore
+/tools            export-ignore
+/src/examples     export-ignore
+/src/public       export-ignore
+/.editorconfig    export-ignore
+/.phpactor.json   export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/phpstan.neon.dist export-ignore
+/phpunit.xml.dist export-ignore

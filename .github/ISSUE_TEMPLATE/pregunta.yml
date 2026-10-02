@@ -1,0 +1,22 @@
+name: Pregunta
+description: No sabes si algo es posible, o cómo se usa.
+labels: ["pregunta"]
+body:
+  - type: textarea
+    id: pregunta
+    attributes:
+      label: La pregunta
+    validations:
+      required: true
+
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: Qué estás intentando construir. Suele bastar para que la respuesta sea concreta.
+
+  - type: textarea
+    id: searching
+    attributes:
+      label: Qué has mirado ya
+      description: El README, el changelog o el código, para no repetir lo que ya está escrito.

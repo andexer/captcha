@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancela la ejecución anterior del mismo ref cuando llega una versión nueva.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: Suite en PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: gd
+          coverage: none
+
+      # composer.lock está gitignorado a propósito, así que no hay versiones
+      # fijadas que reproducir: `install` sin bloqueo resolvería igual, pero
+      # se dice explícito para que nadie lea que el bloqueo se ha olvidado.
+      - name: Instala las dependencias de desarrollo
+        run: composer update --no-interaction --no-progress --prefer-dist
+
+      - name: Ejecuta la suite
+        run: composer test
+
+  calidad:
+    name: Estilo y análisis estático
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # El formateador avisa si se ejecuta en un PHP más nuevo que el mínimo
+      # declarado: podría aplicar sintaxis que el 8.2 no entiende. Por eso
+      # esta puerta se cierra una sola vez, en la versión más baja soportada.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd
+          coverage: none
+
+      - name: Instala las dependencias de desarrollo
+        run: composer update --no-interaction --no-progress --prefer-dist
+
+      # El manifiesto se valida antes de nada: un scripts con un nombre que
+      # Composer no acepta, o una descripción sin su script, se cuelan en
+      # cualquier puerta posterior.
+      - name: Valida el manifiesto
+        run: composer validate --strict
+
+      - name: Audita las dependencias
+        run: composer audit
+
+      - name: PHPStan
+        run: composer static
+
+      - name: Estilo
+        run: composer cs:check
+
+  # La cobertura se mide una sola vez, en la versión más baja soportada: es la
+  # que un consumidor con el PHP mínimo es quien recibe, y medir en cuatro
+  # versiones multiplicaría el coste sin decir nada nuevo. El umbral vive en
+  # tools/coverage.php y lo que se mide es producción (phpunit.xml.dist lo
+  # filtra), no el paquete entero con sus recetas y plantillas.
+  cobertura:
+    name: Cobertura de producción
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # PCOV y no Xdebug: mide lo mismo con una fracción del tiempo, y aquí lo
+      # que cuesta es minutos de matriz.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd
+          coverage: pcov
+
+      - name: Instala las dependencias de desarrollo
+        run: composer update --no-interaction --no-progress --prefer-dist
+
+      - name: Suite con informe y umbral
+        run: composer test:coverage
+
+  instalacion:
+    name: Instalación limpia sin configurar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd
+          coverage: none
+
+      # La suite anterior corre contra el repositorio, donde todo está a mano.
+      # Esta puerta instala el paquete como dependencia real de una app vacía y
+      # comprueba que el consumidor recibe algo que funciona: es la única forma
+      # de detectar que un asset o una plantilla dejan de viajar en el archivo.
+      # El repositorio path va con symlink:false a propósito: con el symlink por
+      # defecto el host apunta al workspace y el smoke vería siempre el árbol de
+      # trabajo, con lo que faltara un asset no se notaría. Mirroring es lo que
+      # reproduce de verdad lo que recibe quien instala desde Packagist.
+      - name: Crea una app anfitriona e instala el paquete
+        run: |
+          mkdir -p /tmp/host
+          cd /tmp/host
+          composer init --no-interaction --name=acme/host
+          composer config repositories.captcha '{"type":"path","url":"'"$GITHUB_WORKSPACE"'","options":{"symlink":false}}'
+          composer config --no-plugins minimum-stability dev
+          composer require 'andexer/captcha:*' --no-interaction --no-progress
+
+      - name: Comprueba la API pública sin configurar nada
+        run: php tools/smoke.php /tmp/host
+
+      # `captcha install` es la única parte del paquete que escribe en el
+      # proyecto de otro. Se prueba entero y en un host real: cada framework
+      # emite su config y su pegamento, todo lo emitido tiene que compilar y el
+      # doctor del propio paquete tiene que encontrar el config que se acaba de
+      # escribir. La última condición es la que importa: emitía un fichero que
+      # el descubrimiento no sondeaba, la app arrancaba con los defaults y
+      # quien integraba creía haber configurado algo.
+      - name: Instala el pegamento de cada framework y comprueba que se descubre
+        run: |
+          for fw in plain codeigniter laravel symfony cakephp yii janssen; do
+            dir="/tmp/fw-$fw"
+            mkdir -p "$dir"
+            printf '{"name":"acme/%s"}' "$fw" > "$dir/composer.json"
+            cd "$dir"
+
+            php /tmp/host/vendor/bin/captcha install --framework="$fw" --quiet
+
+            while IFS= read -r fichero; do
+              php -l "$fichero" > /dev/null
+            done < <(find "$dir" -name '*.php')
+
+            php /tmp/host/vendor/bin/captcha doctor | tee informe.txt
+            if ! grep -q 'Config descubierto' informe.txt; then
+              echo "::error::$fw: el config emitido no lo encuentra el descubrimiento."
+              exit 1
+            fi
+            cd /
+            rm -rf "$dir"
+          done
+          echo 'Los siete frameworks instalan, compilan y se descubren.'
+
+      - name: Comprueba que el archivo distribuido no lleva material de desarrollo
+        run: |
+          composer archive --format=tar --dir=/tmp/dist
+          mapfile -t archivos < <(find /tmp/dist -maxdepth 1 -name '*.tar')
+          if [ "${#archivos[@]}" -ne 1 ]; then
+            echo "::error::Se esperaba un único archivo y se hallaron ${#archivos[@]}."
+            exit 1
+          fi
+          echo '--- Contenido distribuido ---'
+          tar -tf "${archivos[0]}" | sed 's#^[^/]*/##' | sort
+          for ruta in tests tools .github phpunit.xml.dist phpstan.neon.dist src/examples src/public; do
+            if tar -tf "${archivos[0]}" | grep -q "^$ruta"; then
+              echo "::error::El archivo distribuido incluye $ruta, que no debe viajar."
+              exit 1
+            fi
+          done
+          # Lo que la biblioteca lee en tiempo de ejecución y sin lo cual no
+          # arranca: assets, plantillas de config y el pegamento por framework
+          # que emite `captcha install`. Un export-ignore accidental sobre
+          # cualquiera de ellos rompe la instalación en silencio.
+          for ruta in src/Contract/GeneratorInterface.php bin/captcha src/resources \
+                      src/app/Config/templates src/app/Integration/templates; do
+            if ! tar -tf "${archivos[0]}" | grep -q "^$ruta"; then
+              echo "::error::El archivo distribuido no incluye $ruta, que sí debe viajar."
+              exit 1
+            fi
+          done
+          # Y al revés: el pegamento que `captcha install` genera no es código
+          # del paquete. Si alguien lo sube por error, el archivo distribuido
+          # lleva una clase duplicada al host (ver .gitignore).
+          for ruta in src/CaptchaGuard.php public/captcha.php app/Config/captcha.php; do
+            if tar -tf "${archivos[0]}" | grep -q "^$ruta"; then
+              echo "::error::El archivo distribuido incluye $ruta, que es pegamento generado."
+              exit 1
+            fi
+          done
+          echo 'El archivo distribuido lleva lo justo y nada más.'

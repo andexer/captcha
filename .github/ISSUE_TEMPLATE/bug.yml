@@ -1,0 +1,52 @@
+name: Incidencia
+description: Algo no funciona como el README dice que funciona.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar. Un fallo de seguridad **no** va aquí: usa el canal
+        privado de https://github.com/andexer/captcha/security/advisories/new
+
+  - type: textarea
+    id: que-pasa
+    attributes:
+      label: Qué ocurre
+      description: Qué esperabas y qué obtienes en su lugar.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduccion
+    attributes:
+      label: Cómo reproducirlo
+      description: El camino más corto desde un clon limpio hasta el fallo.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Versión del paquete
+      placeholder: "1.0.0 (composer show andexer/captcha)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: entorno
+    attributes:
+      label: Entorno
+      description: |
+        Salida de `php -v`, `php -m | grep -i gd` y, si lo usas,
+        `vendor/bin/captcha doctor`.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Config en uso
+      description: El array de `app/Config/captcha.php`, o el indicio de que no lo tienes.
+      render: php

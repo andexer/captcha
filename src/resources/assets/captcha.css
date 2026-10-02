@@ -1,0 +1,295 @@
+.ct {
+    --pc-bg: #fbfcfe;
+    --pc-surface: #ffffff;
+    --pc-border: #d0d7e2;
+    --pc-text: #1f2430;
+    --pc-muted: #667085;
+    --pc-accent: #3b82f6;
+    --pc-danger: #b42318;
+    --pc-error-bg: #fdeceb;
+    --pc-error-border: #f2b8b5;
+    --pc-reload-bg: rgba(255, 255, 255, .92);
+    --pc-reload-border: rgba(15, 23, 42, .18);
+    --pc-reload-hover: #ffffff;
+    --pc-focus-ring: rgba(59, 130, 246, .18);
+    --pc-field: linear-gradient(180deg, #eef2f7 0%, #e7edf5 100%);
+
+    /* Flexbox, no grid: la fila [imagen | campo] es un solo conjunto y lo es
+       en CUALQUIER viewport. El campo encoge y la imagen se escala antes de
+       que la fila se rompa; el error es el único elemento que pasa a su
+       propia fila, porque ocupa flex-basis: 100% dentro del wrap. */
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+    color: var(--pc-text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.2;
+
+    /* Los controles nativos de formulario y las barras de scroll siguen el
+       esquema oscuro del SO mientras los colores personalizados de abajo
+       siguen funcionando bajo prefers-color-scheme. */
+    color-scheme: light dark;
+}
+
+.ct *,
+.ct *::before,
+.ct *::after {
+    box-sizing: inherit;
+}
+
+/* La imagen es la pieza izquierda del conjunto y comparte borde con el
+   campo de texto: ambos viven en la misma fila y con la misma altura.
+   flex: 0 1 auto la deja encoger en pantallas estrechas (el PNG baja de
+   tamaño en proporción) en vez de empujar al campo fuera de la fila.
+   overflow visible: el botón de recarga vive a caballo de la costura y no
+   debe recortarse; el radio del propio img mantiene las esquinas. */
+.ct__image-wrap {
+    position: relative;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 60%;
+    line-height: 0;
+    overflow: visible;
+    border: 1px solid var(--pc-border);
+    border-radius: 10px 0 0 10px;
+    background: var(--pc-surface);
+}
+
+/* width: 100% dentro del wrap flexible es lo que hace al PNG escalable:
+   cuando el wrap pierde ancho, la imagen baja con él conservando la
+   relación de aspecto, y nunca desborda ni huele a hueco. */
+.ct__image {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 10px 0 0 10px;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: opacity 180ms ease;
+}
+
+.ct[data-busy="true"] .ct__image {
+    opacity: .55;
+}
+
+/* El botón straddlea el borde derecho del PNG, centrado: la costura
+   imagen/campo, fuera del área de tinta (el presupuesto horizontal del
+   renderer garantiza margen derecho de 2·escala + separación tras el último
+   glifo), así jamás tapa un carácter del código. Las esquinas quedan
+   descartadas: con dígitos a escala ×3 el bloque centrado las invade. */
+.ct__reload {
+    position: absolute;
+    right: -13px;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--pc-accent);
+    border-radius: 50%;
+    background: var(--pc-accent);
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .25);
+    cursor: pointer;
+    opacity: .95;
+    transition: transform 140ms ease, filter 140ms ease, opacity 140ms ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ct__reload:hover:not(:disabled) {
+    filter: brightness(1.12);
+    opacity: 1;
+}
+
+.ct__reload:active:not(:disabled) {
+    transform: translateY(-50%) scale(.92);
+}
+
+.ct__reload svg {
+    display: block;
+}
+
+.ct[data-busy="true"] .ct__reload svg {
+    animation: captcha-spin 800ms linear infinite;
+}
+
+@keyframes captcha-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.ct__reload:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
+/* El campo de código es la pieza derecha del conjunto. flex: 1 1 0 lo hace
+   crecer desde cero en vez de desde su ancho intrínseco (~20ch): con basis
+   auto el input ya ocupaba más que el hueco a la derecha de la imagen, la
+   suma de su base no cabía y flex lo bajaba a su propia fila — el conjunto
+   se "rompía en dos" justo en móvil, que es donde importa. min-width: 64px
+   es el suelo práctico: cabe el tecleo a 16px y en una caja estrecha móvil
+   (~235px útiles) el conjunto sigue en la misma fila. */
+.ct__input {
+    flex: 1 1 0;
+    min-width: 64px;
+    padding: 4px 12px;
+    border: 1px solid var(--pc-border);
+    border-left: 0;
+    border-radius: 0 10px 10px 0;
+    background: var(--pc-field);
+    box-shadow: inset 1px 0 0 var(--pc-border);
+    color: inherit;
+    font: inherit;
+    font-size: 16px;
+    letter-spacing: .25em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    caret-color: var(--pc-accent);
+    transition: border-color 140ms ease;
+}
+
+.ct__input::placeholder {
+    color: var(--pc-muted);
+    opacity: 1;
+    font-weight: 500;
+    letter-spacing: .1em;
+    font-variant-numeric: normal;
+}
+
+/* El foco ilumina el grupo entero, no solo el campo. */
+.ct:focus-within {
+    box-shadow: 0 0 0 3px var(--pc-focus-ring);
+}
+
+.ct:focus-within .ct__image-wrap,
+.ct:focus-within .ct__input {
+    border-color: var(--pc-accent);
+}
+
+.ct__input:focus {
+    outline: none;
+}
+
+.ct__input[readonly] {
+    opacity: .6;
+    cursor: default;
+}
+
+.ct__error {
+    flex: 1 1 100%;
+    margin-top: 2px;
+    min-height: 1.25em;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--pc-danger);
+}
+
+/* Sin error la fila colapsa: el grupo queda compacto y el anillo de foco
+   no envuelve espacio fantasma. El JS la llena con textContent, así que
+   :empty deja de aplicar en cuanto hay feedback. */
+.ct__error:empty {
+    margin-top: 0;
+    min-height: 0;
+}
+
+/* El estado de error sin reto (ventana de generación agotada) es una caja
+   de aviso a ancho completo; el widget degrada y el render de la página
+   nunca se rompe: solo el wrapper y el mensaje, sin imagen ni campo. */
+.ct__error:only-child {
+    min-height: 0;
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--pc-error-border);
+    background: var(--pc-error-bg);
+}
+
+.ct__honeypot {
+    position: absolute !important;
+    left: -9999px !important;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.ct__reload:focus-visible,
+.ct__input:focus-visible {
+    outline: 2px solid var(--pc-accent);
+    outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .ct {
+        --pc-bg: #161a23;
+        --pc-surface: #1e2430;
+        --pc-border: #2d3341;
+        --pc-text: #eef1f6;
+        --pc-muted: #98a2b3;
+        --pc-accent: #60a5fa;
+        --pc-danger: #fca5a5;
+        --pc-reload-bg: rgba(30, 36, 48, .92);
+        --pc-reload-border: rgba(255, 255, 255, .22);
+        --pc-reload-hover: #2a3242;
+        --pc-focus-ring: rgba(96, 165, 250, .2);
+        --pc-field: linear-gradient(180deg, #1d232e 0%, #171c24 100%);
+    }
+}
+
+/* Forzar tema por petición: las reglas data-theme llegan después de la
+   media query, así un valor explícito siempre gana al ajuste del sistema. */
+.ct[data-theme="dark"] {
+    color-scheme: dark;
+    --pc-bg: #161a23;
+    --pc-surface: #1e2430;
+    --pc-border: #2d3341;
+    --pc-text: #eef1f6;
+    --pc-muted: #98a2b3;
+    --pc-accent: #60a5fa;
+    --pc-danger: #fca5a5;
+    --pc-error-bg: #2e1a19;
+    --pc-error-border: #7a4a45;
+    --pc-reload-bg: rgba(30, 36, 48, .92);
+    --pc-reload-border: rgba(255, 255, 255, .22);
+    --pc-reload-hover: #2a3242;
+    --pc-focus-ring: rgba(96, 165, 250, .2);
+    --pc-field: linear-gradient(180deg, #1d232e 0%, #171c24 100%);
+}
+
+.ct[data-theme="light"] {
+    color-scheme: light;
+    --pc-bg: #fbfcfe;
+    --pc-surface: #ffffff;
+    --pc-border: #d0d7e2;
+    --pc-text: #1f2430;
+    --pc-muted: #667085;
+    --pc-accent: #3b82f6;
+    --pc-danger: #b42318;
+    --pc-error-bg: #fdeceb;
+    --pc-error-border: #f2b8b5;
+    --pc-reload-bg: rgba(255, 255, 255, .92);
+    --pc-reload-border: rgba(15, 23, 42, .18);
+    --pc-reload-hover: #ffffff;
+    --pc-focus-ring: rgba(59, 130, 246, .18);
+    --pc-field: linear-gradient(180deg, #eef2f7 0%, #e7edf5 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ct *,
+    .ct *::before,
+    .ct *::after,
+    .ct svg {
+        animation: none !important;
+        transition: none !important;
+    }
+}
