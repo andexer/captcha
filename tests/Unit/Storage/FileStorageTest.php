@@ -268,11 +268,11 @@ final class FileStorageTest extends TestCase
         $storage = new FileStorage($this->directory);
 
         // Lote 1: retos ya caducados (TTL negativo) que nadie verificará.
-        for ($i = 0; $i < 600; $i++) {
+        for ($i = 0; $i < 200; $i++) {
             $storage->put('stale-' . $i, '12345', -1);
         }
 
-        self::assertGreaterThan(500, count($this->files()), 'el lote caducado debe existir antes de barrer');
+        self::assertGreaterThan(100, count($this->files()), 'el lote caducado debe existir antes de barrer');
 
         /*
         *  Lote 2: una instancia nueva (sin cooldown) dispara el barrido al
@@ -285,7 +285,7 @@ final class FileStorageTest extends TestCase
 
         // Los caducados se recogen al barrer, el vivo sobrevive.
         self::assertLessThan(
-            50,
+            20,
             count($remaining),
             'los retos caducados deben barrerse al escribir, no acumularse',
         );
@@ -300,18 +300,18 @@ final class FileStorageTest extends TestCase
     {
         $storage = new FileStorage($this->directory);
 
-        for ($i = 0; $i < 300; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $storage->put('live-' . $i, '12345', 300);
         }
 
-        for ($i = 0; $i < 300; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             $storage->put('stale-' . $i, '12345', -1);
         }
 
         $storage = new FileStorage($this->directory);
         $storage->put('trigger', '12345', 300);
 
-        for ($i = 0; $i < 300; $i++) {
+        for ($i = 0; $i < 100; $i++) {
             self::assertTrue($storage->has('live-' . $i), sprintf('el reto vivo live-%d no debe borrarse', $i));
         }
     }

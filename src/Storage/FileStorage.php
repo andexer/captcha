@@ -23,7 +23,7 @@ final class FileStorage implements StorageInterface
      * vivos) jamás escanee, suficientemente bajo para que el directorio no
      * pueda crecer sin límite.
      */
-    private const SWEEP_THRESHOLD = 200;
+    private const SWEEP_THRESHOLD = 50;
 
     /**
      * Segundos mínimos entre dos pasadas de recolección de basura. Una
@@ -279,6 +279,7 @@ final class FileStorage implements StorageInterface
         $path = $this->path($id);
 
         if (!is_file($path)) {
+            $this->sweep();
             return null;
         }
 
@@ -289,7 +290,7 @@ final class FileStorage implements StorageInterface
 
     private function abreYConsume(string $path): string|false
     {
-        $handle = fopen($path, 'r');
+        $handle = fopen($path, 'r+');
 
         if ($handle === false) {
             return false;
@@ -300,7 +301,9 @@ final class FileStorage implements StorageInterface
 
     /**
     *  El lock serializa accesos concurrentes; quien lo obtiene primero lee y
-    *  borra, así que ningún otro llamador puede ganar el código. El handle
+    *  marca el archivo como consumido truncándolo a 0 bytes antes de
+    *  unlink(), así que ningún otro llamador puede ganar el código (el segundo
+    *  proceso leerá un archivo vacío y parse() devolverá null). El handle
     *  queda cerrado pase lo que pase, también si remove() lanza.
     *
      * @param resource $handle
@@ -317,6 +320,8 @@ final class FileStorage implements StorageInterface
 
         try {
             $raw = stream_get_contents($handle);
+            ftruncate($handle, 0);
+            fflush($handle);
             $this->remove($path);
 
             return $raw;
@@ -367,10 +372,16 @@ final class FileStorage implements StorageInterface
 
     /**
      * Decodifica y valida un fichero de entrada; lo elimina cuando está
-     * malformado, caducado o ya consumido.
+     * vacío (truncado por consumo concurrente), malformado, caducado o
+     * ya consumido.
      */
     private function parse(string $raw, string $path): ?string
     {
+        if ($raw === '') {
+            $this->remove($path);
+            return null;
+        }
+
         $entry = self::decodeEntry($raw);
 
         if ($entry === null || !isset($entry['code'], $entry['expires']) || !self::esVigente($entry)) {

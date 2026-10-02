@@ -21,7 +21,7 @@ declare(strict_types=1);
 // 'length' => 6,       → Número de dígitos del código (rango 3-10); más dígitos = más seguridad pero menos legible; también acepta texto numérico ('6').
 // 'width' => 180,      → Ancho de la imagen en píxeles; también acepta texto numérico.
 // 'height' => 60,      → Alto de la imagen en píxeles; también acepta texto numérico.
-// 'ttl' => 300,        → Segundos que un código permanece válido; al expirar el reto pierde vigencia.
+// 'ttl' => 120,        → Segundos que un código permanece válido; al expirar el reto pierde vigencia.
 // 'output' => 'png',   → Formato de la imagen; por ahora solo se admite 'png'.
 // 'difficulty' => 'medium', → Dificultad visual 'low' | 'medium' | 'high'; en modo aritmético gradúa además el tamaño de los operandos (Low 9 · Medium 99 · High 999); también acepta el enum Difficulty.
 // 'font' => 5,     → Tipografía: fuente bitmap INTEGRADA de GD por número (1 small · 3 medium bold · 5 large, el default); sin TTF. Las métricas se leen de GD en runtime.
@@ -121,8 +121,8 @@ return [
     // Imagen de 200x60 píxeles.
     'width' => 200,
     'height' => 60,
-    // El código es válido durante 5 minutos.
-    'ttl' => 300,
+    // El código es válido durante 2 minutos.
+    'ttl' => 120,
     // Dificultad visual media: operandos de hasta 99 (2 dígitos), sumas/restas moderadas.
     /**
      * 'low' = dificultad baja: operandos de hasta 9 (1 dígito)

@@ -27,11 +27,11 @@ declare(strict_types=1);
 // 'operations' y 'between'.
 
 return [
-    // Código de 5 dígitos en una imagen de 200x60, válido 5 minutos.
+    // Código de 5 dígitos en una imagen de 200x60, válido 2 minutos.
     'length' => 5,
     'width' => 200,
     'height' => 60,
-    'ttl' => 300,
+    'ttl' => 120,
 
     // Dificultad visual: operandos de hasta 9 (low), 99 (medium) o
     // 999 (high).

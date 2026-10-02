@@ -9,6 +9,41 @@ declare el host que instaló el paquete.
 
 Todavía no hay nada en este apartado. La última versión cortada está abajo.
 
+## [1.0.0-rc.2] - 2026-10-02
+
+Segunda candidata de publicación. Misma naturaleza que la rc.1: API cerrada,
+pre-release que hay que pedir explícitamente:
+
+```bash
+composer require andexer/captcha:1.0.0-rc.2
+```
+
+### Cambiado
+
+- **La TTL por defecto baja de 300 a 120 segundos** (`Config::DEFAULT_TTL`), y
+  los presets `login` y `strict` heredan ese valor en lugar de fijar los suyos
+  (300 y 180): el código caduca a los 2 minutos, una ventana suficiente para un
+  humano y mucho más incómoda para un atacante que reutiliza retos. Las
+  plantillas de `install` y la documentación reflejan el nuevo valor.
+- **La documentación se segmenta**: el README queda como portada —qué es,
+  instalación básica, inicio rápido e índice— y el contenido extendido vive en
+  `docs/` (`caracteristicas.md`, `tipos-de-captcha.md`, `configuracion.md`,
+  `api.md`, `seguridad.md`, `integracion.md`, `cli.md` y `desarrollo.md`), con
+  enlaces cruzados y sin emojis. `docs/` se marca `export-ignore`, así que no
+  viaja en el archivo distribuido.
+
+### Corregido
+
+- **Uso único reforzado en `FileStorage` bajo concurrencia**: `consume()` abre
+  el fichero en modo `r+` y lo **trunca a 0 bytes bajo el mismo `flock` antes
+  de borrarlo**, así que un segundo proceso que ya había abierto el fichero lee
+  contenido vacío y `parse()` lo descarta como consumido; antes leía el código
+  igualmente si entraba entre la lectura y el `unlink()`. `SWEEP_THRESHOLD`
+  baja de 200 a 50 y una lectura fallida dispara el barrido, para que el
+  directorio de retos se recoja más pronto y no crezca con residuos.
+- Un test de idempotencia del widget podía quedar contaminado por una sesión
+  previa del propio proceso; ahora la deja limpia antes de contar.
+
 ## [1.0.0-rc.1] - 2026-10-01
 
 **Candidata de publicación, no estable.** Semánticamente es una pre-release de la

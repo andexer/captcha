@@ -21,7 +21,7 @@ final readonly class Config
     public const DEFAULT_LENGTH = 6;
     public const DEFAULT_WIDTH = 180;
     public const DEFAULT_HEIGHT = 60;
-    public const DEFAULT_TTL = 300;
+    public const DEFAULT_TTL = 120;
 
     /**
      * Presupuestos de rate limit activos de fábrica.
@@ -136,7 +136,6 @@ final readonly class Config
             'length' => 5,
             'width' => 200,
             'height' => 60,
-            'ttl' => 300,
             'difficulty' => 'low',
             'noise' => false,
             'distortion' => false,
@@ -147,7 +146,6 @@ final readonly class Config
             'length' => 6,
             'width' => 220,
             'height' => 64,
-            'ttl' => 180,
             'difficulty' => 'high',
             'noise' => true,
             'distortion' => true,

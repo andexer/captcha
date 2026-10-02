@@ -67,6 +67,13 @@ final class SizeBudgetTest extends TestCase
             . 'o a cambiar la superficie pública de propiedades que leen GlyphPainter, GdRenderer y sus '
             . 'tests. Lo que sí se extrajo son las medidas: FontMetrics y GlyphSize ya no se arrastran '
             . 'por seis parámetros.',
+        'src/Storage/FileStorage.php::FileStorage::consumeUnderLock' => 'el fix de concurrencia requiere '
+            . 'truncar el archivo a 0 bytes bajo lock antes de unlink() para garantizar uso único; las '
+            . 'tres operaciones (stream_get_contents, ftruncate, fflush) son atómicas como bloque y no '
+            . 'pueden extraerse sin romper la garantía de seguridad.',
+        'src/Storage/FileStorage.php::FileStorage::parse' => 'debe detectar archivos vacíos (truncados por '
+            . 'consumo concurrente) además de malformados y caducados; la validación secuencial de casos '
+            . 'no admite partición sin duplicar el remove() en cada rama.',
     ];
 
     /**

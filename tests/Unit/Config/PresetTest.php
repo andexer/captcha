@@ -18,7 +18,7 @@ final class PresetTest extends TestCase
         self::assertSame(5, $config->length);
         self::assertSame(200, $config->width);
         self::assertSame(60, $config->height);
-        self::assertSame(300, $config->ttl);
+        self::assertSame(120, $config->ttl);
         self::assertSame(Difficulty::Low, $config->difficulty);
         self::assertFalse($config->noise);
         self::assertFalse($config->distortion);
@@ -33,7 +33,7 @@ final class PresetTest extends TestCase
         self::assertSame(6, $config->length);
         self::assertSame(220, $config->width);
         self::assertSame(64, $config->height);
-        self::assertSame(180, $config->ttl);
+        self::assertSame(120, $config->ttl);
         self::assertSame(Difficulty::High, $config->difficulty);
         self::assertTrue($config->noise);
         self::assertTrue($config->distortion);

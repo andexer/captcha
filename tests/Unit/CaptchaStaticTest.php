@@ -247,6 +247,7 @@ final class CaptchaStaticTest extends TestCase
 
     public function testStaticWidgetIsIdempotentWithinTheRequest(): void
     {
+        $_SESSION['_captcha'] = [];
         $before = count($_SESSION['_captcha'] ?? []);
         $first = Captcha::widget();
         $second = Captcha::widget();

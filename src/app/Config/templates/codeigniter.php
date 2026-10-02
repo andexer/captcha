@@ -31,7 +31,7 @@ return [
     //                     //   más seguridad pero menos legibilidad.
     // 'width' => 180,    // Ancho del lienzo en píxeles.
     // 'height' => 60,    // Alto del lienzo en píxeles.
-    // 'ttl' => 300,      // Segundos que el código permanece válido.
+    // 'ttl' => 120,      // Segundos que el código permanece válido.
     // 'output' => 'png', // Formato de imagen; por ahora solo se admite 'png'.
     /*
      * Dificultad de la imagen:

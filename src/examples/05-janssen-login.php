@@ -47,7 +47,7 @@ declare(strict_types=1);
  *
  *   return [
  *       'length'           => 5,   // 5 dígitos.
- *       'ttl'              => 300, // El código caduca a los 5 minutos.
+ *       'ttl'              => 120, // El código caduca a los 2 minutos.
  *       'generateAttempts' => 10,  // 429 tras 10 generaciones en la ventana.
  *       'verifyAttempts'   => 5,   // Bloqueo tras 5 verificaciones erradas.
  *       // Ojo: el honeypot quedó desactivado — su campo por defecto es
