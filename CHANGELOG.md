@@ -9,6 +9,49 @@ declare el host que instaló el paquete.
 
 Todavía no hay nada en este apartado. La última versión cortada está abajo.
 
+## [1.0.0-rc.3] - 2026-10-02
+
+Tercera candidata de publicación. Corrige la integración de Janssen, que escribía
+el pegamento correcto pero dejaba en suspenso —a veces con formas que no
+funcionaban— los pasos de registro que lo encienden:
+
+```bash
+composer require andexer/captcha:1.0.0-rc.3
+```
+
+### Corregido
+
+- **El registro del CaptchaGuard en `app/Config/engine.php` no funcionaba.**
+  Las notas de `install` proponían anidar los preprocesadores bajo una clave
+  `'POST'`, pero Janssen recorre `preprocessors` como una lista plana de `clase`
+  o `[clase, verbo]` (`Janssen\Engine\Preprocessor::processHandlers()`): con la
+  forma anterior el guard no se instanciaba nunca. Ahora las notas emiten la
+  lista real, con `['\App\Preprocessor\CaptchaGuard', 'POST']` detrás de
+  `DecryptRoute` —que es quien fija la acción del usuario—, y explican por qué
+  importa la tupla con el verbo: sin ella el guard también se ejecuta en GET y
+  `decide()` vería un envío vacío.
+- **Las notas no recordaban el resto del contrato de `engine.php`.**
+  `json_encode_options`, que el stock de Janssen ya trae, es de donde
+  `Janssen\Helpers\Response\JsonResponse::render()` saca los flags de
+  `json_encode()`, es decir del endpoint que emite el reto. Sin la clave
+  `Config::get()` devuelve `null` y `json_encode()` recibe `null` en `$flags`:
+  cada recarga del widget responde con un `Deprecated` que, en una aplicación
+  que convierte los avisos en excepciones, se come el JSON entero. Ahora se pide
+  comprobar que sigue ahí.
+- **El paso de registro del router no era copiable.** Las notas mostraban una
+  sola entrada de `routes.php` y contaban en prosa la variante que hace
+  funcionar el botón de recarga. Janssen convierte el query que manda el widget
+  (`?action=generate`) en un *friendly path*, así que `/captcha/action/generate`
+  necesita su propia entrada: sin ella el `404` caía en el botón de recarga, no
+  en el render inicial, que sí se veía. Ahora se emiten las tres entradas
+  listas para copiar —el endpoint, su variante y la página de prueba—.
+- **La página de prueba del widget de Janssen salía sin estilos.**
+  `install --framework=janssen` escribe `templates/captcha-test.php`, y su
+  versión anterior era un esqueleto `<main>` sin CSS: se veía el reto, pero pelado
+  y sin el marco del que habla la documentación. Ahora es una vista completa
+  (Bulma desde CDN) que llama al widget con `endpoint => '/captcha'`, la misma
+  ruta que mapea el paso de registro del router.
+
 ## [1.0.0-rc.2] - 2026-10-02
 
 Segunda candidata de publicación. Misma naturaleza que la rc.1: API cerrada,
