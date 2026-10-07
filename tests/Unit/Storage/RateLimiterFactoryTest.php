@@ -81,4 +81,19 @@ final class RateLimiterFactoryTest extends TestCase
 
         self::assertInstanceOf(IpRateLimiter::class, $limiter);
     }
+
+    public function testWebWithAFrameworkOwnedSessionAndNoIpLimitingHasNothingLeftToMeter(): void
+    {
+        /*
+        *  La mitad de sesión se descarta siempre bajo un framework propietario
+        *  y la bolsa por IP está deshabilitada: no queda nada que medir y el
+        *  cubo no debe tocar una sesión (`SessionRateLimiter` preemptaría).
+        */
+        Host::forceWeb(true);
+        Host::forceFrameworkSession(true);
+
+        $limiter = RateLimiterFactory::forConfig(new Config(rateLimitByIp: false));
+
+        self::assertInstanceOf(NullRateLimiter::class, $limiter);
+    }
 }
