@@ -26,7 +26,14 @@ use yii\web\HttpException;
  * login prefiere reponer el formulario en vez de mostrar un 422, sustituye el
  * throw por un flash más un redirect a la acción anterior.
  *
- * Regístralo en config/web.php, dentro de behaviors.
+ * Regístralo a nivel superior de config/web.php, con el prefijo as:
+ *
+ *     'as captcha' => \app\filters\CaptchaFilter::class,
+ *
+ * Las behaviors a secas no son una clave de config válida a ese nivel: Yii
+ * lanza InvalidCallException. Con el prefijo as la aplicación ensambla el
+ * filtro como behavior propio, y Controller::runAction le pasa por delante
+ * cada acción antes de ejecutarla.
  */
 final class CaptchaFilter extends ActionFilter
 {

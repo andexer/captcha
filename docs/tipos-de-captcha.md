@@ -13,7 +13,7 @@ Con `operations` no vacío, la imagen muestra `a + b` (o `−`, `×`, `÷`) y el
 - **Resta no negativa** (`a >= b` siempre).
 - **División exacta** (divisor ≥ 2).
 - **Techo por longitud**: el resultado nunca excede `10^length − 1`, así que el usuario nunca teclea más dígitos que el `maxlength` del campo.
-- **Dificultad** gradua los operandos: `low` hasta 9 (1 dígito), `medium` hasta 99 (2 dígitos), `high` hasta 999 (3 dígitos).
+- **Dificultad** gradua los operandos contra ese techo: `low` hasta su raíz cuadrada, `medium` una décima parte, `high` la mitad (suelo 9). Con `length: 6` son ~999, ~99 999 y ~499 999 — no tres cifras fijas; la tabla completa está más abajo.
 - **CSPRNG con *rejection sampling***: si un intento no cumple las invariantes, se reintenta (máx. 200); si es imposible, `InvalidConfigException` en español, nunca una imagen rota.
 
 `operations` acepta **4 formatos equivalentes**, normalizados a la misma `list<Operation>`:
@@ -67,8 +67,10 @@ El renderer usa `imagechar()` con las **fuentes bitmap integradas de GD** (1 a 5
 | 1 | `small` — la más pequeña |
 | 2 | `normal` |
 | 3 | `medium bold` — negrita |
-| 4 | `grande` |
-| 5 | `large` — la mayor, **default** |
+| 4 | `grande` — la más alta (8×16) |
+| 5 | `large` — la más ancha (9×15), **default** |
+
+Las medidas exactas las da el build de GD con el que corre tu PHP: se leen en runtime (`imagefontwidth()`/`imagefontheight()`), nunca están hardcodeadas.
 
 El tamaño del glifo:
 

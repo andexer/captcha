@@ -9,9 +9,9 @@ use Captcha\Http\Endpoint;
 *  Endpoint drop-in para el widget JavaScript. Va sobre la capa estática
 *  (Captcha::instance()) para usar la MISMA configuración global descubierta
 *  por el paquete (env CAPTCHA_CONFIG → app/Config/captcha.php →
-*  config/captcha.php → etc/captcha.php): coincide por construcción con la
-*  del formulario — comparten sesión y no hay dos configs que mantener
-*  sincronizadas.
+*  config/captcha.php → config/packages/captcha.php → etc/captcha.php): coincide
+*  por construcción con la del formulario — comparten sesión y no hay dos
+*  configs que mantener sincronizadas.
 *
 *  El límite de generación frena el flood del endpoint (GD es costoso en
 *  CPU): los excedentes responden 429. Sin cookies el contador sigue en

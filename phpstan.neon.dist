@@ -32,7 +32,7 @@ parameters:
         # si el anfitrión la tiene ya cargada. Referenciarla como ::class hace
         # que PHPStan intente resolverla y falle.
         -
-            message: '#Class (CodeIgniter\\CodeIgniter|Illuminate\\Foundation\\Application|Symfony\\Component\\HttpKernel\\Kernel|Cake\\Core\\Application|yii\\BaseYii) not found#'
+            message: '#Class (CodeIgniter\\CodeIgniter|Illuminate\\Foundation\\Application|Symfony\\Component\\HttpKernel\\Kernel|Cake\\Core\\Application|yii\\BaseYii|Yiisoft\\Yii\\Http\\Application) not found#'
             paths:
                 - src/Runtime/Host.php
 

@@ -26,7 +26,10 @@ use CodeIgniter\HTTP\ResponseInterface;
  * omite el campo oculto captcha_id se daría por válido y bastaría con borrar ese
  * input para saltarse la comprobación.
  *
- * Regístralo en app/Config/Filters.php, dentro de $aliases.
+ * Regístralo en app/Config/Filters.php: el alias en $aliases y la activación
+ * en $methods, por ejemplo ['POST' => ['captcha']]. El alias por sí solo no
+ * prende nada: CodeIgniter solo lo usa cuando algo (una ruta, un filtro, los
+ * globales o $methods) lo referencia.
  */
 final class CaptchaFilter implements FilterInterface
 {

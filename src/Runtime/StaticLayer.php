@@ -7,11 +7,7 @@ namespace Captcha\Runtime;
 use Captcha\Captcha;
 use Captcha\Config\Config;
 use Captcha\Config\ConfigFile;
-use Captcha\Contract\StorageInterface;
 use Captcha\Exception\InvalidConfigException;
-use Captcha\Storage\ArrayStorage;
-use Captcha\Storage\FileStorage;
-use Captcha\Storage\SessionStorage;
 
 /**
  * La capa estática con ámbito de petición detrás del azúcar estático de
@@ -24,28 +20,25 @@ use Captcha\Storage\SessionStorage;
  * singleton jamás se filtra entre peticiones; reset() lo descarta dentro de
  * una petición (tests de larga vida, reconfiguración).
  *
+ * El backend de retos no se decide aquí: lo elige StorageResolver dentro de
+ * la propia construcción de Captcha, para que el camino estático y el armado
+ * a mano resuelvan lo mismo.
+ *
  * @internal
  */
 final class StaticLayer
 {
     /**
-     * Auto-storage bajo un framework: el backend de ficheros vive en un
-     * directorio estable por host (sys_get_temp_dir()) compartido por
-     * formulario y endpoint.
-     */
-    private const FILE_STORAGE_DIR = '/captcha';
-
-    /**
      * Las rutas de configuración relativas a una raíz de proyecto, en orden de
      * precedencia.
      *
-     * La lista mezcla las convenciones de cada framework porque es el mismo
-     * paquete el que `install` coloca el fichero donde su framework lo espera:
-     * app/Config/ en CodeIgniter y PHP plano, config/ en Laravel, CakePHP y
-     * Yii, config/packages/ en Symfony, que no es un capricho del core sino lo
-     * que emite el propio instalador para ese framework — sin esta entrada,
-     * el config que `install --framework=symfony` deja escrito no lo
-     * encontraría nadie.
+     * La lista mezcla las convenciones de cada framework: app/Config/ en
+     * CodeIgniter, Janssen y PHP plano, config/ en Laravel, Symfony, CakePHP
+     * y Yii — que es donde `install` escribe hoy el fichero para todos ellos.
+     * config/packages/ y etc/ quedan por retrocompatibilidad con instalaciones
+     * anteriores a ese cambio: no es un capricho del core, es la ruta que
+     * emitían las rc; retirarla ahora dejaría a esas apps con un config que
+     * existiría y nadie leería.
      */
     private const CONFIG_SUBPATHS = [
         'app/Config/captcha.php',
@@ -58,15 +51,12 @@ final class StaticLayer
 
     /**
      * Opciones fijadas programáticamente vía Captcha::configure(); tienen
-     * precedencia sobre cualquier fichero de configuración descubierto. Una
-     * instancia Config se usa tal cual; un array se parsea (y se valida de
-     * forma estricta). null significa "sin opciones manuales": decide el
-     * descubrimiento.
+     * precedencia sobre cualquier fichero de configuración descubierto. Un
+     * array se valida al fijarlo y se guarda ya convertido a Config, así
+     * que bootstrap() no repite la conversión. null significa "sin opciones
+     * manuales": decide el descubrimiento.
      */
-    /**
-     * @var Config|array<string, mixed>|null
-     */
-    private static Config|array|null $manualOptions = null;
+    private static ?Config $manualOptions = null;
 
     /**
      * La instancia con ámbito de petición, creada en el primer uso.
@@ -95,12 +85,32 @@ final class StaticLayer
      * siguiente llamada estática reconstruya con ellas. Un array vacío libera
      * las opciones y restaura el descubrimiento por fichero.
      *
+     * El array se valida AQUÍ y no en el primer instance(): un typo tiene que
+     * quejarse en la línea que lo escribió, no mucho más tarde dentro del
+     * bootstrap de la aplicación.
+     *
      * @param array<string, mixed>|Config $options
+     *
+     * @throws InvalidConfigException Cuando un array trae claves o valores
+     *                                que no pasan Config::fromArray().
      */
     public static function configure(Config|array $options): void
     {
-        self::$manualOptions = $options === [] ? null : $options;
+        self::$manualOptions = match (true) {
+            $options === [] => null,
+            is_array($options) => Config::fromArray($options),
+            default => $options,
+        };
         self::$instance = null;
+    }
+
+    /**
+     * ¿Hay opciones fijadas con configure()? Doctor lo usa para no atribuir
+     * al descubrimiento una configuración que, en realidad, vino de la mano.
+     */
+    public static function hasManualConfig(): bool
+    {
+        return self::$manualOptions !== null;
     }
 
     /**
@@ -186,22 +196,7 @@ final class StaticLayer
      */
     private static function bootstrap(): Captcha
     {
-        $config = self::$manualOptions !== null
-            ? self::manualConfig()
-            : Config::fromArray(self::discoverOptions());
-
-        return new Captcha(storage: self::resolvedStorage($config), config: $config);
-    }
-
-    /**
-     * configure() sustituye el descubrimiento: lo que se pasó a mano gana, y
-     * sin llamada manual se busca el fichero; sin ninguna de las dos, defaults.
-     */
-    private static function manualConfig(): Config
-    {
-        return self::$manualOptions instanceof Config
-            ? self::$manualOptions
-            : Config::fromArray(self::$manualOptions ?? []);
+        return new Captcha(config: self::$manualOptions ?? Config::fromArray(self::discoverOptions()));
     }
 
     /**
@@ -398,26 +393,5 @@ final class StaticLayer
         }
 
         return [$packageDir];
-    }
-
-    /**
-     * Almacenamiento de retos implícito en la opción "storage" de Config.
-     *
-     * "auto" (el default) jamás preempta el gestor de sesión de un framework
-     * propietario de las sesiones PHP: resuelve a FileStorage en tal host y a
-     * SessionStorage en una app de PHP plano, una corrida CLI o la propia
-     * suite de tests del paquete. "session", "file" y "array" fuerzan el
-     * backend correspondiente sin importar el host.
-     */
-    private static function resolvedStorage(Config $config): StorageInterface
-    {
-        return match ($config->storage) {
-            'file' => new FileStorage(sys_get_temp_dir() . self::FILE_STORAGE_DIR),
-            'array' => new ArrayStorage(),
-            'session' => new SessionStorage(),
-            default => Host::frameworkSessionManaged()
-                ? new FileStorage(sys_get_temp_dir() . self::FILE_STORAGE_DIR)
-                : new SessionStorage(),
-        };
     }
 }

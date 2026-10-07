@@ -19,11 +19,17 @@ Primer acierto gana; si ninguno existe se usan los valores por defecto:
 1. getenv("CAPTCHA_CONFIG")
 2. <raíz del proyecto>/app/Config/captcha.php
 3. <raíz del proyecto>/config/captcha.php
-4. <raíz del proyecto>/etc/captcha.php
-5. <cwd>/app/Config/captcha.php
-6. <cwd>/config/captcha.php
-7. <cwd>/etc/captcha.php
+4. <raíz del proyecto>/config/packages/captcha.php   (retrocompatibilidad con rc)
+5. <raíz del proyecto>/etc/captcha.php
+6. <cwd>/app/Config/captcha.php
+7. <cwd>/config/captcha.php
+8. <cwd>/config/packages/captcha.php                 (retrocompatibilidad con rc)
+9. <cwd>/etc/captcha.php
 ```
+
+(Con una sola raíz resoluble. Si el paquete está enlazado, se prueban dos
+raíces candidatas —tres y cuatro niveles— y cada una repite las cuatro
+subrutas de arriba.)
 
 La **raíz del proyecto** se resuelve desde la ubicación de instalación del
 paquete, no desde el cwd del proceso: se prueban los anclajes de **tres y cuatro
@@ -37,7 +43,7 @@ cwd web sea el docroot. El archivo debe `return array;` (si devuelve otra cosa:
 recomendada cuando quieras saltarte por completo el escaneo.
 
 **Firma obligatoria en los anclajes.** Las candidaturas de la raíz del
-proyecto (2–4 del orden) son *opt-in*: solo se aceptan si el fichero lleva
+proyecto (2–5 del orden) son *opt-in*: solo se aceptan si el fichero lleva
 la línea de comentario `// captcha config v2` en su cabecera. Así el
 paquete no absorbe por accidente el `captcha.php` de una aplicación ajena
 en un checkout anidado: un fichero en el ancla sin la firma se **ignora**
@@ -53,7 +59,7 @@ ausente, `válido` sombreado por una anterior).
 > **Consejo:** usa la misma vía para formulario y endpoint. El endpoint de recarga debe ir sobre `Captcha::instance()`, de modo que comparte *por construcción* la misma configuración y el mismo backend de retos que el formulario — nunca hay dos configs que mantener sincronizadas.
 
 > **Out-of-the-box en frameworks:** cuando el paquete detecta un framework que
-> gestiona la sesión PHP (CodeIgniter, Laravel, Symfony, **CakePHP, Yii** —
+> gestiona la sesión PHP (CodeIgniter, Laravel, Symfony, **CakePHP, Yii, Yii 3** —
 > clases kernel ya cargadas), el storage por defecto pasa automáticamente de
 > sesión a **archivos** en `sys_get_temp_dir()/captcha` y el limiter de
 > retry se queda solo-IP.
@@ -62,15 +68,21 @@ ausente, `válido` sombreado por una anterior).
 > construirse: arrancar la sesión antes los rompe). Fuera de framework sigue el
 > legacy `SessionStorage`. Forza explícito con `'storage' => 'session'|'file'|'array'`.
 
+### Runners persistentes y orden de arranque
+
+La capa estática asume que PHP reinicia los estáticos en cada petición (FPM, CLI). En un **runner persistente** —FrankenPHP en modo worker, RoadRunner, Swoole— el proceso vive entre peticiones, así que el singleton y la config también: llama a `Captcha::reset()` en cada petición (y `Captcha::configure([...])` de nuevo si usas opciones manuales) para que ninguna respuesta herede el estado de la anterior.
+
+Con `storage => 'auto'` la elección de backend mira qué kernels de framework están **ya cargados** en el momento del primer `Captcha::instance()`. Si esa primera llamada llega antes de que el host cargue su framework, el paquete se ve como PHP plano y elige sesión; corrígelo con `Captcha::reset()` una vez arrancado el framework, o no llames a captcha hasta después de su bootstrap.
+
 ## Opción A — copiar la plantilla
 
 ```bash
 vendor/bin/captcha install                         # PHP plano / CodeIgniter 4 → app/Config/captcha.php
 vendor/bin/captcha install laravel                # Laravel → config/captcha.php
-vendor/bin/captcha install --framework=symfony     # Symfony → config/packages/captcha.php
+vendor/bin/captcha install --framework=symfony     # Symfony → config/captcha.php
 ```
 
-Genera el config inicial del framework indicado (**`plain`, `codeigniter`, `laravel`, `symfony`, `cakephp`, `yii`, `janssen`**) en su ruta canónica, con **todas** las opciones documentadas: es un `return []` activo, así que el fichero es válido desde el primer segundo. En las seis primeras cada clave va comentada junto a su default y basta descomentar la que necesites; la de Janssen llega con los valores ya activos. **Nunca sobrescribe** un fichero existente. Las plantillas se generan a partir del fragmento compartido de opciones (`src/app/Config/fragments/options.php`) — regenéralas con `composer config:templates` tras editarlo; las copias distribuidas viven en `src/app/Config/templates/` y ya llevan la firma del anclaje. Ver [Integración por framework](integracion.md).
+Genera el config inicial del framework indicado (**`plain`, `codeigniter`, `laravel`, `symfony`, `cakephp`, `yii`, `yii3`, `janssen`**) en su ruta canónica: es un `return []` activo, así que el fichero es válido desde el primer segundo. En las siete plantillas con fragmento (`plain`…`yii3`) aparecen **todas** las opciones, cada una comentada junto a su default, y basta descomentar la que necesites; la de Janssen, que se reparte en un preprocesador y un controlador, llega con los valores ya activos y solo las claves que ese patrón necesita. **Nunca sobrescribe** un fichero existente. Las plantillas se generan a partir del fragmento compartido de opciones (`src/app/Config/fragments/options.php`) — regenéralas con `composer config:templates` tras editarlo; las copias distribuidas viven en `src/app/Config/templates/` y ya llevan la firma del anclaje. Ver [Integración por framework](integracion.md).
 
 ## Opción B — armar tu propio array
 
@@ -91,7 +103,8 @@ return [
     'height' => 60,
     // El código es válido durante 2 minutos.
     'ttl' => 120,
-    // Dificultad media (operandos de hasta 99 en modo aritmético).
+    // Dificultad media: en modo aritmético, los operandos se reparten dentro
+    // del techo por longitud (una décima parte, con suelo 9).
     'difficulty' => 'medium',
     // Tipografía y tamaño del glifo: fuente bitmap de GD (1-5) y altura en px.
     'font' => 5,
@@ -122,12 +135,12 @@ Un grupo de opciones listas para cada caso. **Las claves explícitas ganan** sob
 | Preset | Concepto | Qué fija |
 |---|---|---|
 | `default` | Defaults del constructor | Nada (se usa el valor de cada clave por defecto). |
-| `login` | Formularios de acceso | 5 dígitos, 200×60, TTL 300, dificultad baja, sin ruido ni distorsión, rate limit 5 verify / 30 generate. |
-| `strict` | Máxima dureza anti-spam | 6 dígitos, 220×64, TTL 180, dificultad alta, con ruido y distorsión, 5 verify / 20 generate, honeypot activo (`website`). |
+| `login` | Formularios de acceso | 5 dígitos, 200×60, dificultad baja, sin ruido ni distorsión, rate limit 5 verify / 30 generate. No toca el TTL: queda el default (120). |
+| `strict` | Máxima dureza anti-spam | 6 dígitos, 220×64, dificultad alta, con ruido y distorsión, 5 verify / 20 generate, honeypot activo (`website`). Tampoco toca el TTL (120). |
 
 ## Tabla completa de opciones
 
-Todas son **opcionales**. Las que aceptan número también aceptan su texto numérico (p. ej. `'6'`).
+Todas son **opcionales**. Las que aceptan número también aceptan su texto numérico (p. ej. `'6'`), **pero solo por array**: `fromArray()`, `configure()` y el fichero de config. El constructor y los setters del builder exigen tipos nativos (`new Config(length: '6')` lanza `TypeError`).
 
 | Clave | Default | Acepta | Descripción |
 |---|---|---|---|
@@ -153,7 +166,7 @@ Todas son **opcionales**. Las que aceptan número también aceptan su texto num�
 | `honeypotField` | `'email'` | texto no vacío | Nombre del campo trampa. **Debe ser distinto de los campos reales** del formulario. |
 | `rateLimitByIp` | `true` | bool | Incluye la IP del cliente en la clave del límite. En PHP plano el limiter es dual IP+sesión; bajo un framework que gestione la sesión (ver `storage`) se queda solo-IP. `false` = solo sesión. |
 | `trustedProxies` | `[]` | lista de IPs válidas | IPs exactas (sin rangos/CIDR) autorizadas a pasar `X-Forwarded-For`. Vacío = la cabecera se ignora. |
-| `storage` | `'auto'` | `'auto'`/`'session'`/`'file'`/`'array'` | Backend de los retos. `'auto'` elige en runtime: `file` bajo un framework que gestione la sesión PHP, `session` en PHP plano/CLI; nunca toca la sesión del host sin que se lo pidas. Los otros valores fuerzan ese backend. |
+| `storage` | `'auto'` | `'auto'`/`'session'`/`'file'`/`'array'` | Backend de los retos. `'auto'` elige en runtime: `file` bajo un framework que gestione la sesión PHP, `session` en PHP plano/CLI; nunca toca la sesión del host sin que se lo pidas. Los otros valores fuerzan ese backend. Rige en la capa estática **y** en `new Captcha(...)` cuando no inyectas un storage propio. |
 
 > El bloque marcado «1b» de la plantilla (`src/app/Config/captcha.php`) es el mismo array completo comentado, listo para copiar y pegar.
 
@@ -161,30 +174,35 @@ Todas son **opcionales**. Las que aceptan número también aceptan su texto num�
 
 `Config` es un **value object `final readonly`**, y los arrays se validan al construir. La misma API te sirve para configurar desde PHP sin ningún fichero:
 
-- **`Config::fromArray(array $opts, bool $strict = true)`** — valida tipos y rangos. Por defecto es **estricto**: una clave no reconocida lanza `InvalidConfigException` en español (`Claves de configuración no reconocidas: "verifyAtempts".`) — un typo nunca desactiva silenciosamente el rate limit ni cae en defaults. Pasa `strict: false` si prefieres ignorar lo desconocido (compatibilidad).
+- **`Config::fromArray(array $opts, bool $strict = true)`** — valida tipos y rangos. Por defecto es **estricto**: una clave no reconocida lanza `InvalidConfigException` en español (`Claves de configuración no reconocidas: "verifyAtempts".`) — un typo nunca desactiva silenciosamente el rate limit ni cae en defaults. Pasa `strict: false` si prefieres ignorar lo desconocido (compatibilidad) **por esta vía**: `Captcha::configure()` y el descubrimiento de fichero aplican siempre el modo estricto, y `configure()` lo aplica **en el momento de la llamada** — un typo se queja en la línea que lo escribió, no en el primer `instance()`.
 - **`Config::toArray()`** — exporta el config efectivo (preset ya expandido, `operations` como valores canónicos `add|subtract|multiply|divide`, `difficulty` como `low|medium|high`), simétrico con `fromArray()` para poder serializar/deserializar sin pérdida.
 - **`Config::merge(array|Config $overrides)`** — inmutable: devuelve un `Config` nuevo aplicando un parche (array o `Config`) sobre el actual, revalidado. Una clave explícita del parche o de la base gana siempre; un `preset` del parche solo rellena los huecos que la base no cubre. Sirve para combinar un presets con overrides de entorno:
   ```php
   $config = Config::forLogin()->merge(['verifyAttempts' => 10, 'length' => 7]);
   ```
+  > **Un preset ya materializado no se reanuda.** `Config::forLogin()` dejó sus valores como explícitos, así que `->merge(['preset' => 'strict'])` solo rellenaría huecos que ya no existen: sigue mandando `login`. Para cambiar de preset, empieza de nuevo con `Config::fromArray(['preset' => 'strict'])` (o `Config::forStrict()`).
 - **Fábricas**: `Config::defaults()` (= `new Config()`), `Config::forLogin()` y `Config::forStrict()` (equivalen a `fromArray(['preset' => ...])`, listas para `merge()`).
 - **`Config::builder()`** — API fluida y tipada (los setters se llaman igual que las claves): `Config::builder()->length(5)->operations(['+','-'])->verifyAttempts(5)->build()`. Acepta `preset()` y `from()` (un array, un `Config` o otro builder); `build()` valida vía `fromArray()` estricto y devuelve el `Config` inmutable.
 
 Todos los caminos convergen en el mismo `Config` validado, así que el fichero, `configure()`, el constructor y el builder no pueden divergir:
 
 ```php
-// Lo mismo por las cuatro vías:
-new Config(length: 5, difficulty: 'low');
-Config::fromArray(['preset' => 'login']);
-Config::builder()->preset('login')->build();
-Captcha::configure(Config::forLogin()->merge(['length' => 5]));
+// Las cuatro vías al mismo Config (longitud 5, el resto por defecto):
+new Config(length: 5);
+Config::fromArray(['length' => 5]);
+Config::builder()->length(5)->build();
+Captcha::configure(['length' => 5]);
 ```
+
+El constructor exige tipos nativos: `difficulty` recibe el enum `Captcha\Config\Difficulty::Low`, no la cadena `'low'`, y no admite `preset` — ese atajo es exclusivo del camino de array.
 
 ---
 
 ## Validaciones
 
 Toda opción se valida **al construir** el `Config` («inmutable»): un valor inválido lanza `InvalidConfigException` (hija de `CaptchaException`) y la instancia jamás se observa en un estado inválido. En arrays, las **claves desconocidas lanzan** `InvalidConfigException` por defecto (modo **estricto**, para que un typo no desactive silenciosamente protección alguna); con `Config::fromArray($opts, strict: false)` se ignoran, como hacía la versión anterior.
+
+> **Única excepción de momento:** el cruce `between` ↔ `length` se comprueba en `generate()`, no al construir. El paquete prefiere **recortar** el rango a denegar el captcha: si `max` no cabe en `length` dígitos se acota al techo, y solo lanza `InvalidConfigException` cuando el `min` no cabe — y con el mensaje de la tabla de abajo.
 
 | Clave | Regla | Mensaje exacto (en español) |
 |---|---|---|
@@ -206,16 +224,29 @@ Toda opción se valida **al construir** el `Config` («inmutable»): un valor in
 | `between` | min ≥ 0 | `El límite mínimo de 'between' no puede ser negativo; se recibió N.` |
 | `between` | min ≤ max | `El límite mínimo de 'between' (N) no puede ser mayor que el máximo (M).` |
 | `between` | requiere `operations` | `'between' solo tiene efecto en modo aritmético; defina 'operations'.` |
-| `between` | cabe en `length` dígitos | `El rango de "between" [N, M] no cabe en un código de L dígitos (máx. X).` |
+| `between` | `min` cabe en `length` dígitos (revisión en `generate()`; un `max` que desborda se recorta, no se rechaza) | `El rango de "between" [N, M] no cabe en un código de L dígitos (máx. X).` |
 | `verifyAttempts` | entero ≥ 0 | `El límite de intentos de verificación no puede ser negativo; se recibió N.` |
 | `generateAttempts` | entero ≥ 0 | `El límite de generación no puede ser negativo; se recibió N.` |
 | `rateLimitWindow` | entero ≥ 1 | `La ventana del rate limit debe ser de al menos 1 segundo; se recibió N.` |
 | `trustedProxies` | array de IPs válidas (exactas) | `'trustedProxies' debe contener IPs válidas.` |
+| `storage` | `'auto'`/`'session'`/`'file'`/`'array'` | `'storage' no es válido; use "auto", "session", "file" o "array".` |
 | archivo de config | debe `return array` | `El fichero de configuración debe devolver un array.` |
 
 Las claves numéricas («integers»): si llega un tipo no numérico → `'X' debe ser un entero.`; si es texto no numérico → `'X' debe ser un entero.`. El `preset` no es texto → `'preset' debe ser texto.`. El `difficulty` con un tipo raro → `'difficulty' debe ser un texto o un valor Difficulty.`. Y los arrays: `'operations' debe ser un array.`, `'between' debe ser un array de dos enteros, p. ej. [2, 20].`, `'trustedProxies' debe ser un array de IPs.`
 
 > Todos estos strings son los literales reales del paquete. Si quieres exactitud byte a byte, míralos en `src/Config/Config.php`.
+
+---
+
+## Cachés y redeclaración
+
+El descubrimiento **lee el fichero una sola vez** por petición y guarda el `Config` ya construido: no hay una segunda pasada en la que un cambio posterior pueda colarse. Eso tiene tres consecuencias prácticas cuando la aplicación cachea su configuración:
+
+- **opcache con `validate_timestamps=0`** (recomendado en producción): los cambios en `captcha.php` no se ven hasta que recargues opcache o reinicies PHP. Es el caso más frecuente de «he editado el config y no hace nada».
+- **Laravel — `php artisan config:cache`**: el framework serializa sus ficheros de `config/` a un único array. Nuestro descubrimiento no participa de ese proceso (lee el fichero directamente), así que si cacheas la config de Laravel, la de `captcha` sigue leyéndose del disco tal cual está: sigue funcionando, pero la regeneración de la caché no la incluye.
+- **Symfony — `bin/console cache:warmup`**: lo mismo, con la salvedad de que el config anclado con firma sigue pudiendo ser ignorado en silencio si se despliega sin él; `captcha doctor` lo reporta como aviso.
+
+La otra cara es `Captcha::configure()`: fija las opciones en la capa estática **de por vida de la petición**, y `Captcha::reset()` solo suelta la instancia — las opciones manuales sobreviven. No es un mecanismo para mutar la configuración a mitad de petición: el config es declarativo. Fíjalo una vez (bootstrap, arranque de la app o el primer punto de entrada) y deja que `reset()` limpie la instancia sin tocarlo.
 
 ---
 

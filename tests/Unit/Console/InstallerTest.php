@@ -15,7 +15,7 @@ final class InstallerTest extends TestCase
     public function testFrameworksListTheSupportedIdentifiers(): void
     {
         self::assertSame(
-            ['plain', 'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'janssen'],
+            ['plain', 'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'yii3', 'janssen'],
             Installer::frameworks(),
         );
     }
@@ -26,9 +26,10 @@ final class InstallerTest extends TestCase
             'plain' => 'app/Config/captcha.php',
             'codeigniter' => 'app/Config/captcha.php',
             'laravel' => 'config/captcha.php',
-            'symfony' => 'config/packages/captcha.php',
+            'symfony' => 'config/captcha.php',
             'cakephp' => 'config/captcha.php',
             'yii' => 'config/captcha.php',
+            'yii3' => 'config/captcha.php',
             'janssen' => 'app/Config/captcha.php',
         ];
 
@@ -81,12 +82,17 @@ final class InstallerTest extends TestCase
         }
     }
 
+    /*
+    *  El dataset manda: cada framework tiene que empezar por su propio
+    *  config en su ruta canónica, no por una ruta pisada a mano (era el
+    *  error del primer borrador, que siempre miraba la de laravel).
+    */
     #[DataProvider('frameworkProvider')]
-    public function testArtifactsStartWithTheConfigAndCarryItsNotesNone(): void
+    public function testArtifactsStartWithTheConfigAndCarryItsNotesNone(string $framework): void
     {
-        $artefactos = Installer::artifacts('/tmp/project', 'laravel');
+        $artefactos = Installer::artifacts('/tmp/project', $framework);
 
-        self::assertSame('/tmp/project/config/captcha.php', $artefactos[0]->path);
+        self::assertSame(Installer::targetPath('/tmp/project', $framework), $artefactos[0]->path);
         self::assertSame([], $artefactos[0]->notes, 'el config no deja nada por registrar');
         self::assertFalse($artefactos[0]->hasNotes());
     }

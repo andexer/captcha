@@ -2,27 +2,22 @@
 
 declare(strict_types=1);
 
-// Configuración de captcha — Symfony (ruta config/captcha.php).
+// Configuración de captcha — Yii 3 (ruta config/captcha.php).
 // captcha config v2
-// Instalación: vendor/bin/captcha install --framework=symfony
+// Instalación: vendor/bin/captcha install --framework=yii3
 // ─────────────────────────────────────────────────────────────────────────────
-// Va en config/ y NO en config/packages/ a propósito: el kernel importa
-// config/packages/* como configuración de contenedor, y este fichero
-// devuelve un array plano de opciones escalares — en cuanto descomentes
-// una, ese loader la rechazaría y el cache:clear se caería. El kernel no
-// carga config/captcha.php, así que lo lee la capa estática del paquete
-// (descubrimiento normal). No metas Captcha::configure() en
-// config/services.php: ese fichero solo corre al compilar el contenedor
-// y la llamada no llega a los workers de PHP-FPM.
+// La capa estática descubre este fichero automáticamente (orden: env
+// CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →
+// etc/ → los mismos en cwd; config/packages/ queda solo por
+// retrocompatibilidad) y sus valores alimentan tanto widget() como
+// check(). No hay que enumerarlo en config/.merge-plan.php: ese plan es
+// lo único que el config-plugin de Yii lee, y quien lo necesita aquí es
+// la capa estática, que lo encuentra solo.
 //
-// Luego Captcha::widget() dentro del <form> (Twig) y Captcha::check() en el
-// controlador del POST. El widget recarga contra /captcha/generate, que es
-// la ruta que install escribe:
-//
-//   Captcha::widget(['endpoint' => '/captcha/generate']);
-//
-// install escribe además el listener de kernel.request (guard), el
-// controlador de la ruta AJAX y su ruta YAML.
+// Luego Captcha::widget() dentro del formulario y Captcha::check() en la
+// acción que recibe el POST. install escribe además el middleware PSR-15
+// (guard) y la acción invocable de la ruta AJAX; el instalador imprime
+// dónde registrar cada uno (withMiddlewares() y routes.php).
 //
 // Todas las claves son OPCIONALES: cada línea comentada deja su default
 // activo (los mismos del constructor del paquete). Descomenta y ajusta solo

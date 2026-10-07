@@ -57,6 +57,16 @@ final class Doctor
         . 'dentro del <form>.';
 
     /**
+     * Los dos relatos de config cuando no hay fichero que reportar: con
+     * opciones manuales puestas y sin nada de ninguna de las dos vías.
+     */
+    private const MANUAL_CONFIG_TEXT = 'Config: opciones fijadas con Captcha::configure() — ganan sobre cualquier fichero descubierto';
+
+    private const NO_CONFIG_TEXT = 'Config: ninguno descubierto (env CAPTCHA_CONFIG, cwd app/Config/, config/ y etc/, '
+        . 'más las anclas de raíz firmadas con config/packages/ de retrocompatibilidad) — defaults, '
+        . 'salvo que llames Captcha::configure([...])';
+
+    /**
      * Ejecuta todas las comprobaciones y devuelve el reporte estructurado.
      */
     public function report(): DoctorReport
@@ -131,15 +141,11 @@ final class Doctor
     {
         $path = Captcha::configPath();
 
-        if ($path !== null) {
-            return [$this->finding(Severity::Ok, sprintf('Config descubierto: %s', $path))];
-        }
-
-        return [$this->finding(
-            Severity::Notice,
-            'Config: ninguno descubierto (env CAPTCHA_CONFIG, cwd app/Config/, config/, etc/ '
-            . 'y anclas de raíz firmadas) — defaults, salvo que llames Captcha::configure([...])',
-        )];
+        return match (true) {
+            $path !== null => [$this->finding(Severity::Ok, sprintf('Config descubierto: %s', $path))],
+            StaticLayer::hasManualConfig() => [$this->finding(Severity::Ok, self::MANUAL_CONFIG_TEXT)],
+            default => [$this->finding(Severity::Notice, self::NO_CONFIG_TEXT)],
+        };
     }
 
     /**
@@ -154,9 +160,10 @@ final class Doctor
     private function configCandidates(): array
     {
         $findings = [];
+        $manual = StaticLayer::hasManualConfig();
 
         foreach (StaticLayer::candidatesForDiagnostics() as $candidate) {
-            $finding = $this->candidateFinding($candidate);
+            $finding = $this->candidateFinding($candidate, $manual);
 
             if ($finding !== null) {
                 $findings[] = $finding;
@@ -172,11 +179,13 @@ final class Doctor
      * normal cuando el discovery prueba varias anclas.
      *
      * @param array{path: string, loaded: bool, anchored: bool, signed: bool} $candidate
+     * @param bool $manual Hay opciones de configure(): el descubrimiento no
+     *                     decide, aunque encuentre un fichero válido.
      */
-    private function candidateFinding(array $candidate): ?Finding
+    private function candidateFinding(array $candidate, bool $manual): ?Finding
     {
         if ($candidate['loaded']) {
-            return $this->finding(Severity::Ok, sprintf('cargado  %s', $candidate['path']), 1);
+            return $this->loadedFinding($candidate['path'], $manual);
         }
 
         if (!is_file($candidate['path'])) {
@@ -187,6 +196,19 @@ final class Doctor
         }
 
         return $this->candidaturaSombreada($candidate['path']);
+    }
+
+    /**
+     * La candidata que ganó el descubrimiento, con el matiz de si se usó
+     * (bootstrap la carga) o no (configure() la desborda).
+     */
+    private function loadedFinding(string $path, bool $manual): Finding
+    {
+        if ($manual) {
+            return $this->finding(Severity::Notice, sprintf('descubierto %s (no usado: gana Captcha::configure())', $path), 1);
+        }
+
+        return $this->finding(Severity::Ok, sprintf('cargado  %s', $path), 1);
     }
 
     private function candidaturaSombreada(string $path): Finding
@@ -456,11 +478,12 @@ final class Doctor
     private function frameworkHint(): ?string
     {
         return match (true) {
-            class_exists(\CodeIgniter\CodeIgniter::class, false) => 'Host: CodeIgniter 4 — arranca con Captcha::configure(config(\'Captcha\')->options); plantilla: install codeigniter.',
+            class_exists(\CodeIgniter\CodeIgniter::class, false) => 'Host: CodeIgniter 4 — filter + endpoint (app/Filters, app/Controllers) y registro en Filters.php y Routes.php; plantilla: install codeigniter.',
             class_exists(\Illuminate\Foundation\Application::class, false) => 'Host: Laravel — Captcha::configure(config(\'captcha\')) en un service provider; plantilla: install laravel.',
-            class_exists(\Symfony\Component\HttpKernel\Kernel::class, false) => 'Host: Symfony — parámetro desde config/packages/captcha.php pasado a Captcha::configure(); plantilla: install symfony.',
-            class_exists(\Cake\Core\Application::class, false) => 'Host: CakePHP — Configure::read(\'Captcha\') en bootstrap(); plantilla: install cakephp.',
-            class_exists(\yii\BaseYii::class, false) => 'Host: Yii — Yii::$app->params[\'captcha\'] en el bootstrap; plantilla: install yii.',
+            class_exists(\Symfony\Component\HttpKernel\Kernel::class, false) => 'Host: Symfony — config/captcha.php lo descubre la capa estática sola; plantilla: install symfony.',
+            class_exists(\Cake\Core\Application::class, false) => 'Host: CakePHP — middleware y controller con su ruta (src/Application.php y routes.php); plantilla: install cakephp.',
+            class_exists(\yii\BaseYii::class, false) => 'Host: Yii — filter como as captcha en config/web.php y acción inline en controllers/; plantilla: install yii.',
+            class_exists(\Yiisoft\Yii\Http\Application::class, false) => 'Host: Yii 3 — el config en config/captcha.php lo lee la capa estática sola; plantilla: install yii3.',
             default => null,
         };
     }

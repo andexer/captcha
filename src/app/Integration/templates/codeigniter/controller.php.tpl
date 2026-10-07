@@ -26,7 +26,10 @@ use Captcha\Captcha as CaptchaPackage;
  * código lo hace el CaptchaFilter aplicado al POST que lo recibe, y el POST
  * sigue siendo el único sitio donde se consume el reto.
  *
- * Regístrala en app/Config/Routes.php, dentro de $routes->get().
+ * Regístrala en app/Config/Routes.php, dentro de $routes->get(). El widget no
+ * apunta aquí por defecto, así que decláralo al dibujarlo:
+ *
+ *     Captcha::widget(['endpoint' => '/captcha/generate']);
  */
 final class Captcha extends BaseController
 {

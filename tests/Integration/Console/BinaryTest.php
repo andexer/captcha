@@ -181,7 +181,7 @@ final class BinaryTest extends TestCase
         $resultado = $this->cli(['install', 'symfony']);
 
         self::assertSame(0, $resultado['code'], $resultado['error']);
-        self::assertFileExists($this->workspace . '/config/packages/captcha.php');
+        self::assertFileExists($this->workspace . '/config/captcha.php');
         self::assertStringContainsString('Config creado (symfony)', $resultado['output']);
     }
 
@@ -190,10 +190,13 @@ final class BinaryTest extends TestCase
      * descubrimiento encuentre.
      *
      * Es la mitad de un fallo que daba exactamente este resultado: el
-     * instalador de Symfony escribe en config/packages/, que no estaba en la
-     * lista de anclas, así que el fichero quedaba ahí y nadie lo leía — la
+     * instalador de Symfony escribía en config/packages/, que no estaba en
+     * la lista de anclas, así que el fichero quedaba ahí y nadie lo leía — la
      * app arrancaba con los defaults y el usuario creyendo haber configurado
-     * algo. Se comprueba con el doctor de verdad, no con la lista de rutas.
+     * algo. La ruta es hoy config/captcha.php, que además queda fuera del
+     * glob config/packages/* con el que el kernel de Symfony cargaría un
+     * array plano de opciones como si fuera config de contenedor. Se
+     * comprueba con el doctor de verdad, no con la lista de rutas.
      */
     public function testTheConfigItEmitsIsTheOneItsOwnDoctorFinds(): void
     {
@@ -202,7 +205,7 @@ final class BinaryTest extends TestCase
         $resultado = $this->cli(['doctor']);
 
         self::assertStringContainsString(
-            'Config descubierto: ' . $this->workspace . '/config/packages/captcha.php',
+            'Config descubierto: ' . $this->workspace . '/config/captcha.php',
             $resultado['output'],
         );
     }
@@ -215,14 +218,15 @@ final class BinaryTest extends TestCase
         yield 'plain' => ['plain', 'app/Config/captcha.php'];
         yield 'codeigniter' => ['codeigniter', 'app/Config/captcha.php'];
         yield 'laravel' => ['laravel', 'config/captcha.php'];
-        yield 'symfony' => ['symfony', 'config/packages/captcha.php'];
+        yield 'symfony' => ['symfony', 'config/captcha.php'];
         yield 'cakephp' => ['cakephp', 'config/captcha.php'];
         yield 'yii' => ['yii', 'config/captcha.php'];
+        yield 'yii3' => ['yii3', 'config/captcha.php'];
         yield 'janssen' => ['janssen', 'app/Config/captcha.php'];
     }
 
     /**
-     * La misma garantía para los siete frameworks: lo que `install` pone en su
+     * La misma garantía para los ocho frameworks: lo que `install` pone en su
      * ruta canónica es alcanzable por el descubrimiento, sin CAPTCHA_CONFIG ni
      * configure() de por medio.
      */
@@ -342,13 +346,22 @@ final class BinaryTest extends TestCase
             'app/Http/Middleware/CaptchaGuardMiddleware.php',
             'app/Http/Controllers/CaptchaController.php',
         ]];
+        yield 'symfony' => ['symfony', [
+            'src/EventListener/CaptchaGuardListener.php',
+            'src/Controller/CaptchaController.php',
+            'config/routes/captcha.yaml',
+        ]];
         yield 'cakephp' => ['cakephp', [
             'src/Middleware/CaptchaMiddleware.php',
             'src/Controller/CaptchaController.php',
         ]];
         yield 'yii' => ['yii', [
-            'src/filters/CaptchaFilter.php',
-            'src/controllers/CaptchaController.php',
+            'filters/CaptchaFilter.php',
+            'controllers/CaptchaController.php',
+        ]];
+        yield 'yii3' => ['yii3', [
+            'src/Web/Captcha/GuardMiddleware.php',
+            'src/Web/Captcha/GenerateAction.php',
         ]];
         yield 'janssen' => ['janssen', [
             'app/Preprocessor/CaptchaGuard.php',

@@ -32,8 +32,8 @@ final class Host
      * PHP" y el captcha no debe llamar a session_start().
      *
      * CodeIgniter, Laravel y Symfony respaldan los guards por defecto;
-     * CakePHP y Yii se incluyen para que el paquete los reconozca del mismo
-     * modo (su auto-storage aterriza en FileStorage y la cookie de sesión
+     * CakePHP, Yii y Yii 3 se incluyen para que el paquete los reconozca del
+     * mismo modo (su auto-storage aterriza en FileStorage y la cookie de sesión
      * jamás se endurece ahí, honrando el contrato de "jamás preemptar al
      * host").
      *
@@ -45,6 +45,7 @@ final class Host
         \Symfony\Component\HttpKernel\Kernel::class,
         \Cake\Core\Application::class,
         \yii\BaseYii::class,
+        \Yiisoft\Yii\Http\Application::class,
     ];
 
     /**

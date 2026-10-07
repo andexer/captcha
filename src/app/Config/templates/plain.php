@@ -8,7 +8,8 @@ declare(strict_types=1);
 // ─────────────────────────────────────────────────────────────────────────────
 // La capa estática descubre este fichero automáticamente (orden: env
 // CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →
-// etc/ → los mismos en cwd) y sus valores alimentan tanto widget() como
+// etc/ → los mismos en cwd; config/packages/ queda solo por
+// retrocompatibilidad) y sus valores alimentan tanto widget() como
 // check(). Instalación completa = composer require + este fichero. install
 // escribe además el guard (src/CaptchaGuard.php) y el endpoint AJAX
 // (public/captcha.php) cuando eliges el framework plain.
@@ -33,10 +34,11 @@ return [
     // 'ttl' => 120,      // Segundos que el código permanece válido.
     // 'output' => 'png', // Formato de imagen; por ahora solo se admite 'png'.
     /*
-     * Dificultad de la imagen:
-     *   'low'    = operandos de hasta 9 (1 dígito)
-     *   'medium' = operandos de hasta 99 (2 dígitos)
-     *   'high'   = operandos de hasta 999 (3 dígitos)
+     * Dificultad de la imagen y, en modo aritmético, de los operandos.
+     * El techo de estos es 10^length − 1 y cada nivel reparte ese
+     * espacio: 'low' hasta su raíz cuadrada, 'medium' una décima parte
+     * y 'high' la mitad, siempre con un suelo de 9. Con length 6 eso
+     * son ~999, ~99 999 y ~499 999, no tres cifras fijas.
      */
     // 'difficulty' => 'medium',
 
@@ -44,10 +46,11 @@ return [
     //   Fuentes bitmap integradas de GD, nunca TTF.
     /*
      * La imagen se dibuja con las fuentes bitmap integradas de GD; el
-     * paquete no carga ficheros de fuente propios. Hay 5 tipografías:
+     * paquete no carga ficheros de fuente propios. Hay 5 tipografías
+     * (las métricas exactas las da el build de GD en runtime):
      *
      *   1 = small (la más pequeña)    3 = medium bold  5 = large (default)
-     *   2 = normal                    4 = grande
+     *   2 = normal                    4 = la más alta
      */
     // 'font' => 5,
     /*

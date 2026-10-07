@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Configuración global de captcha — la ÚNICA pieza de configuración. La capa estática descubre este archivo automáticamente (orden: env CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/captcha.php → etc/captcha.php → los mismos en cwd) y sus valores alimentan tanto Captcha::widget() como Captcha::check(); instalación completa = composer require + este return.
+// Configuración global de captcha — la ÚNICA pieza de configuración. La capa estática descubre este archivo automáticamente (orden: env CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/captcha.php → config/packages/captcha.php (retrocompatibilidad) → etc/captcha.php → los mismos en cwd) y sus valores alimentan tanto Captcha::widget() como Captcha::check(); instalación completa = composer require + este return.
 // captcha config v2
 //
 // Todas las claves son OPCIONALES: si una se omite se aplica su valor por defecto. El fichero trae dos bloques: (1) PLANTILLA COMPLETA — todas las opciones documentadas en español, una por línea, comentadas; (2) ARRAY FUNCIONAL — las opciones realmente activas en este proyecto.
@@ -15,7 +15,7 @@ declare(strict_types=1);
 
 // ── PRESETS ──────────────────────────────────────────────────────────────────
 //   Atajo: un paquete de opciones listo para cada caso.
-// 'preset' => 'login',  → 'default' (defaults del constructor) | 'login' (formularios de acceso: 5 dígitos, imagen grande y limpia 200x56, sin ruido/distorsión, rate limit 5 verify / 30 generate) | 'strict' (máxima dureza anti-spam: 6 dígitos, dificultad high, TTL 180, honeypot 'website'). Cualquier clave explícita GANA sobre la del preset, así que 'preset' + retoques conviven bien.
+// 'preset' => 'default',  → 'default' (defaults del constructor) | 'login' (formularios de acceso: 5 dígitos, imagen grande y limpia 200x60, sin ruido/distorsión, rate limit 5 verify / 30 generate) | 'strict' (máxima dureza anti-spam: 6 dígitos, dificultad high, ruido y distorsión al máximo, honeypot 'website'; el TTL lo deja en 120). Cualquier clave explícita GANA sobre la del preset, así que 'preset' + retoques conviven bien.
 
 // ── CÓDIGO E IMAGEN ──────────────────────────────────────────────────────────
 // 'length' => 6,       → Número de dígitos del código (rango 3-10); más dígitos = más seguridad pero menos legible; también acepta texto numérico ('6').
@@ -23,8 +23,8 @@ declare(strict_types=1);
 // 'height' => 60,      → Alto de la imagen en píxeles; también acepta texto numérico.
 // 'ttl' => 120,        → Segundos que un código permanece válido; al expirar el reto pierde vigencia.
 // 'output' => 'png',   → Formato de la imagen; por ahora solo se admite 'png'.
-// 'difficulty' => 'medium', → Dificultad visual 'low' | 'medium' | 'high'; en modo aritmético gradúa además el tamaño de los operandos (Low 9 · Medium 99 · High 999); también acepta el enum Difficulty.
-// 'font' => 5,     → Tipografía: fuente bitmap INTEGRADA de GD por número (1 small · 3 medium bold · 5 large, el default); sin TTF. Las métricas se leen de GD en runtime.
+// 'difficulty' => 'medium', → Dificultad visual 'low' | 'medium' | 'high'; en modo aritmético gradúa además los operandos contra el techo 10^length − 1 (low hasta su raíz, medium una décima parte, high la mitad, con suelo 9); también acepta el enum Difficulty.
+// 'font' => 5,     → Tipografía: fuente bitmap INTEGRADA de GD por número (1 small · 3 medium bold · 4 la más alta · 5 large, el default); sin TTF. Las métricas se leen de GD en runtime.
 // 'fontSize' => null, → Altura de glifo objetivo en píxeles; null la deriva del lienzo (~78 % del alto, tope 4x). Nunca deja que el código desborde el ancho.
 
 // ── RENDERIZADO ──────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ declare(strict_types=1);
 
 // ── MODO ARITMÉTICO ──────────────────────────────────────────────────────────
 // 'operations' => [],  → Operaciones matemáticas habilitadas: el reto muestra "a op b" y el código es el resultado numérico; acepta símbolos ['+', '-', '*', '/'] (y '×', '÷'), nombres ['addition', 'subtraction', 'multiplication', 'division'], casos del enum Operation o el mapa booleano ['addition' => true, ...]; vacío u omitido = dígitos clásicos.
-// 'between' => [2, 20], → Rango de resultados aritméticos inclusivo [min, max], p. ej. [2, 20]: toda respuesta cae dentro (además del techo de length); requiere 'operations'; 0 <= min <= max; valores del archivo aceptan strings numéricos.
+// 'between' => null,     → Rango de resultados aritméticos inclusivo [min, max], p. ej. [2, 20]: toda respuesta cae dentro (además del techo de length); requiere 'operations'; 0 <= min <= max; valores del archivo aceptan strings numéricos.
 
 // ── RATE LIMIT ───────────────────────────────────────────────────────────────
 //   Techo anti-flood y anti-spam.
@@ -61,11 +61,12 @@ declare(strict_types=1);
 
 /*
  * ═════════════════════════════════════════════════════════════════════════════
- * 1b) CÓDIGO COMPLETO DEL ARRAY — las 23 opciones del paquete en un solo
- *     array, listas para copiar y pegar. Copia este bloque al `return` de tu
- *     proyecto, quita los delimitadores del bloque (los dos asteriscos de la
- *     primera línea y los dos del final) y ajusta solo lo que necesites:
- *     cada clave es OPCIONAL y todo lo que no esté presente usará su default.
+ * 1b) CÓDIGO COMPLETO DEL ARRAY — las 24 claves del paquete (23 opciones más
+ *     el atajo preset) en un solo array, listas para copiar y pegar. Copia este
+ *     bloque al `return` de tu proyecto, quita los delimitadores del bloque (los
+ *     dos asteriscos de la primera línea y los dos del final) y ajusta solo lo
+ *     que necesites: cada clave es OPCIONAL y todo lo que no esté presente usará
+ *     su default.
  * ═════════════════════════════════════════════════════════════════════════════
  *
  * return [
@@ -77,7 +78,7 @@ declare(strict_types=1);
  *     'length'      => 6,          // Dígitos del código (rango 3-10).
  *     'width'       => 180,        // Ancho de la imagen en píxeles.
  *     'height'      => 60,         // Alto de la imagen en píxeles.
- *     'ttl'         => 300,        // Segundos que un código permanece válido.
+ *     'ttl'         => 120,        // Segundos que un código permanece válido.
  *     'output'      => 'png',      // Formato de imagen; solo se admite 'png'.
  *     'difficulty'  => 'medium',   // 'low' | 'medium' | 'high'.
  *
@@ -123,11 +124,12 @@ return [
     'height' => 60,
     // El código es válido durante 2 minutos.
     'ttl' => 120,
-    // Dificultad visual media: operandos de hasta 99 (2 dígitos), sumas/restas moderadas.
+    // Dificultad visual media; en aritmético, los operandos se reparten dentro
+    // del techo por longitud (una décima parte con el medium, suelo 9).
     /**
-     * 'low' = dificultad baja: operandos de hasta 9 (1 dígito)
-     * 'medium' = dificultad media: operandos de hasta 99 (2 dígitos)
-     * 'high' = dificultad alta: operandos de hasta 999 (3 dígitos)
+     * 'low' = hasta la raíz cuadrada del techo (10^length − 1), mínimo 9
+     * 'medium' = hasta una décima parte del techo, mínimo 9
+     * 'high' = hasta la mitad del techo
      */
     // 'difficulty' => 'medium',
 

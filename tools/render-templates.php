@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Generador de plantillas de framework para `captcha install` (#5).
  *
- * Las 7 plantillas de config que se distribuyen comparten ~80 % de su
+ * Las 8 plantillas de config que se distribuyen comparten ~80 % de su
  * contenido (el bloque de opciones); esta herramienta renderiza cada una a
  * partir del fragmento compartido (src/app/Config/fragments/options.php)
  * más su cabecera y sus notas de wiring específicas del framework,
@@ -13,7 +13,7 @@ declare(strict_types=1);
  * nuevo = una entrada en $frameworks; la documentación de las opciones se
  * escribe una sola vez.
  *
- * Seis de las siete entregan el bloque de opciones comentado, para que quien
+ * Siete de las ocho entregan el bloque de opciones comentado, para que quien
  * instala lea las opciones y active solo lo que necesite. Janssen es la
  * excepción: su entrada trae 'body' con los valores ya activos y su propia nota,
  * porque en ese framework el config se escribe en la raíz de la app y el
@@ -49,7 +49,8 @@ $frameworks = [
             '// ─────────────────────────────────────────────────────────────────────────────',
             '// La capa estática descubre este fichero automáticamente (orden: env',
             '// CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →',
-            '// etc/ → los mismos en cwd) y sus valores alimentan tanto widget() como',
+            '// etc/ → los mismos en cwd; config/packages/ queda solo por',
+            '// retrocompatibilidad) y sus valores alimentan tanto widget() como',
             '// check(). Instalación completa = composer require + este fichero. install',
             '// escribe además el guard (src/CaptchaGuard.php) y el endpoint AJAX',
             '// (public/captcha.php) cuando eliges el framework plain.',
@@ -64,7 +65,8 @@ $frameworks = [
             '// ─────────────────────────────────────────────────────────────────────────────',
             '// La capa estática descubre este fichero automáticamente (orden: env',
             '// CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →',
-            '// etc/ → los mismos en cwd) y sus valores alimentan tanto widget() como',
+            '// etc/ → los mismos en cwd; config/packages/ queda solo por',
+            '// retrocompatibilidad) y sus valores alimentan tanto widget() como',
             '// check(). install escribe además el guard como filter',
             '// (app/Filters/CaptchaFilter.php) y el endpoint AJAX',
             '// (app/Controllers/Captcha.php); regístralos en app/Config/Filters.php',
@@ -79,7 +81,8 @@ $frameworks = [
             '// Instalación: vendor/bin/captcha install --framework=laravel',
             '// ─────────────────────────────────────────────────────────────────────────────',
             '// Laravel carga este fichero con config(\'captcha\'). Conecta el array en',
-            '// un service provider (regístrate en config/app.php providers):',
+            '// un service provider y regístralo en bootstrap/providers.php (Laravel',
+            '// 11 y superior) o en config/app.php, clave providers (Laravel 9 y 10):',
         ],
         'wiring' => [
             '//',
@@ -98,23 +101,29 @@ $frameworks = [
     ],
     'symfony' => [
         'header' => [
-            '// Configuración de captcha — Symfony (ruta config/packages/captcha.php).',
+            '// Configuración de captcha — Symfony (ruta config/captcha.php).',
             '// captcha config v2',
             '// Instalación: vendor/bin/captcha install --framework=symfony',
             '// ─────────────────────────────────────────────────────────────────────────────',
-            '// Symfony carga este fichero como parámetro de contenedor. Conecta el array',
-            '// en un compiler pass o en un servicio:',
+            '// Va en config/ y NO en config/packages/ a propósito: el kernel importa',
+            '// config/packages/* como configuración de contenedor, y este fichero',
+            '// devuelve un array plano de opciones escalares — en cuanto descomentes',
+            '// una, ese loader la rechazaría y el cache:clear se caería. El kernel no',
+            '// carga config/captcha.php, así que lo lee la capa estática del paquete',
+            '// (descubrimiento normal). No metas Captcha::configure() en',
+            '// config/services.php: ese fichero solo corre al compilar el contenedor',
+            '// y la llamada no llega a los workers de PHP-FPM.',
         ],
         'wiring' => [
             '//',
-            '//   use Captcha\Captcha;',
-            '//',
-            '//   $config = (array) $container->getParameter(\'captcha\');',
-            '//   Captcha::configure($config);',
-            '//',
             '// Luego Captcha::widget() dentro del <form> (Twig) y Captcha::check() en el',
-            '// controlador del POST. install escribe además el listener de',
-            '// kernel.request (guard), el controlador de la ruta AJAX y su ruta YAML.',
+            '// controlador del POST. El widget recarga contra /captcha/generate, que es',
+            '// la ruta que install escribe:',
+            '//',
+            '//   Captcha::widget([\'endpoint\' => \'/captcha/generate\']);',
+            '//',
+            '// install escribe además el listener de kernel.request (guard), el',
+            '// controlador de la ruta AJAX y su ruta YAML.',
         ],
     ],
     'cakephp' => [
@@ -125,7 +134,8 @@ $frameworks = [
             '// ─────────────────────────────────────────────────────────────────────────────',
             '// La capa estática descubre este fichero automáticamente (orden: env',
             '// CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →',
-            '// etc/ → los mismos en cwd) y sus valores alimentan tanto widget() como',
+            '// etc/ → los mismos en cwd; config/packages/ queda solo por',
+            '// retrocompatibilidad) y sus valores alimentan tanto widget() como',
             '// check(); no necesitas tocar Configure. El array es plano, igual que en',
             '// el resto de frameworks.',
         ],
@@ -156,6 +166,28 @@ $frameworks = [
             '// (guard) y el controlador de la ruta AJAX.',
         ],
     ],
+    'yii3' => [
+        'header' => [
+            '// Configuración de captcha — Yii 3 (ruta config/captcha.php).',
+            '// captcha config v2',
+            '// Instalación: vendor/bin/captcha install --framework=yii3',
+            '// ─────────────────────────────────────────────────────────────────────────────',
+            '// La capa estática descubre este fichero automáticamente (orden: env',
+            '// CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →',
+            '// etc/ → los mismos en cwd; config/packages/ queda solo por',
+            '// retrocompatibilidad) y sus valores alimentan tanto widget() como',
+            '// check(). No hay que enumerarlo en config/.merge-plan.php: ese plan es',
+            '// lo único que el config-plugin de Yii lee, y quien lo necesita aquí es',
+            '// la capa estática, que lo encuentra solo.',
+        ],
+        'wiring' => [
+            '//',
+            '// Luego Captcha::widget() dentro del formulario y Captcha::check() en la',
+            '// acción que recibe el POST. install escribe además el middleware PSR-15',
+            '// (guard) y la acción invocable de la ruta AJAX; el instalador imprime',
+            '// dónde registrar cada uno (withMiddlewares() y routes.php).',
+        ],
+    ],
     'janssen' => [
         'header' => [
             '// Configuración de captcha — Janssen (ruta app/Config/captcha.php).',
@@ -164,7 +196,8 @@ $frameworks = [
             '// ─────────────────────────────────────────────────────────────────────────────',
             '// La capa estática descubre este fichero automáticamente (orden: env',
             '// CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →',
-            '// etc/ → los mismos en cwd) y sus valores alimentan tanto widget() como',
+            '// etc/ → los mismos en cwd; config/packages/ queda solo por',
+            '// retrocompatibilidad) y sus valores alimentan tanto widget() como',
             '// el veredicto del guard. Los valores de abajo están activos: ajústalos a',
             '// tu gusto y borra las líneas que no uses, porque toda clave es opcional.',
             '//',
@@ -187,11 +220,11 @@ $frameworks = [
             '\'height\' => 60,',
             '\'ttl\' => 120,',
             '',
-            '// Dificultad visual: operandos de hasta 9 (low), 99 (medium) o',
-            '// 999 (high).',
+            '// Dificultad visual; en aritmético, los operandos caben dentro',
+            '// del techo por longitud (low raíz, medium décima, high mitad).',
             '\'difficulty\' => \'medium\',',
             '',
-            '// Tipografía bitmap integrada de GD (1-5; la 5 es la mayor) y alto',
+            '// Tipografía bitmap integrada de GD (1-5; la 5 es la default) y alto',
             '// del glifo en píxeles; null lo deja automático.',
             '\'font\' => 5,',
             '\'fontSize\' => 35,',

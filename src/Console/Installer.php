@@ -39,9 +39,10 @@ final class Installer
         'plain' => ['path' => 'app/Config/captcha.php', 'template' => 'plain.php'],
         'codeigniter' => ['path' => 'app/Config/captcha.php', 'template' => 'codeigniter.php'],
         'laravel' => ['path' => 'config/captcha.php', 'template' => 'laravel.php'],
-        'symfony' => ['path' => 'config/packages/captcha.php', 'template' => 'symfony.php'],
+        'symfony' => ['path' => 'config/captcha.php', 'template' => 'symfony.php'],
         'cakephp' => ['path' => 'config/captcha.php', 'template' => 'cakephp.php'],
         'yii' => ['path' => 'config/captcha.php', 'template' => 'yii.php'],
+        'yii3' => ['path' => 'config/captcha.php', 'template' => 'yii3.php'],
         'janssen' => ['path' => 'app/Config/captcha.php', 'template' => 'janssen.php'],
     ];
 

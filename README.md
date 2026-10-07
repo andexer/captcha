@@ -52,7 +52,7 @@ vendor/bin/captcha doctor    # comprueba PHP, GD, config descubierto y endpoint
 
 `install` nunca sobrescribe un archivo existente. Eso es todo: instalación completa = `composer require` + (opcional) un archivo `.php` de configuración.
 
-> **Versión actual: candidata de publicación.** Lo publicado ahora es `1.0.0-rc.2` (pre-release): Composer no la ofrece sin pedir la estabilidad, así que hay que nombrarla: `composer require andexer/captcha:1.0.0-rc.2`. En producción, espera a `v1.0.0` y usa `^1.0`.
+> **Versión actual: candidata de publicación.** Lo publicado ahora es `1.0.0-rc.4` (pre-release): Composer no la ofrece sin pedir la estabilidad, así que hay que nombrarla: `composer require andexer/captcha:1.0.0-rc.4`. En producción, espera a `v1.0.0` y usa `^1.0`.
 
 ---
 
@@ -105,7 +105,7 @@ try {
 | [Configuración](docs/configuracion.md) | Descubrimiento, presets, tabla completa de opciones, `Config`, validaciones. |
 | [API](docs/api.md) | Métodos públicos, widget, endpoint AJAX, almacenamiento, excepciones, contratos. |
 | [Seguridad](docs/seguridad.md) | Rate limiting, proxies de confianza, honeypot, endurecimiento, `CaptchaGuard`. |
-| [Integración](docs/integracion.md) | PHP plano, CodeIgniter, Laravel, Symfony, CakePHP, Yii y Janssen. |
+| [Integración](docs/integracion.md) | PHP plano, CodeIgniter, Laravel, Symfony, CakePHP, Yii, Yii 3 y Janssen. |
 | [Consola](docs/cli.md) | `install`, `doctor`, alias, dry-run, códigos de salida. |
 | [Desarrollo](docs/desarrollo.md) | Puesta en marcha, publicar versiones, ejemplos, limitaciones, arquitectura. |
 

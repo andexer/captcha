@@ -91,6 +91,20 @@ final class CaptchaTest extends TestCase
         return ['limiter' => $limiter, 'keys' => &$keys];
     }
 
+    public function testManualConstructionResolvesStorageFromConfigWhenOmitted(): void
+    {
+        $captcha = new Captcha(config: new Config(storage: 'array'));
+
+        self::assertInstanceOf(ArrayStorage::class, $captcha->storage());
+    }
+
+    public function testExplicitStorageBeatsTheStorageOption(): void
+    {
+        $captcha = new Captcha(storage: new ArrayStorage(), config: new Config(storage: 'file'));
+
+        self::assertInstanceOf(ArrayStorage::class, $captcha->storage());
+    }
+
     public function testGenerateReturnsIdImageAndMimeType(): void
     {
         $captcha = new Captcha(

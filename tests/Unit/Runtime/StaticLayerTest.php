@@ -150,6 +150,25 @@ final class StaticLayerTest extends TestCase
         self::assertSame(60, $config->ttl);
     }
 
+    /*
+    *  El atajo 'preset' vive en Config, no en la capa, así que un fichero
+    *  descubierto con solo ['preset' => 'login'] debe salir con lo que
+    *  promete el preset (5 dígitos, lienzo 200x60 y sin ruido), no con los
+    *  defaults del constructor.
+    */
+    public function testDiscoveredConfigFileCanUsePreset(): void
+    {
+        $file = $this->tempConfig('<?php return ["preset" => "login"];');
+        putenv('CAPTCHA_CONFIG=' . $file);
+
+        $config = Captcha::instance()->config();
+
+        self::assertSame(5, $config->length);
+        self::assertSame(200, $config->width);
+        self::assertSame(60, $config->height);
+        self::assertFalse($config->noise);
+    }
+
     public function testBrokenConfigFileThrowsInvalidConfig(): void
     {
         $file = $this->tempConfig('<?php return "no-array";');
@@ -158,6 +177,43 @@ final class StaticLayerTest extends TestCase
         $this->expectException(InvalidConfigException::class);
 
         Captcha::instance();
+    }
+
+    /*
+    *  El mismo contrato estricto que en la vía de programa tiene que regir el
+    *  descubrimiento: un typo en el fichero del anfitrión (aquí la clásica
+    *  errata "verifyAtempts") debe tumbar el arranque con el mensaje de
+    *  KEYS, no dejarse leer y quedar el rate limit apagado en silencio.
+    */
+    public function testDiscoveredConfigFileWithUnknownKeyThrows(): void
+    {
+        $file = $this->tempConfig('<?php return ["verifyAtempts" => 3];');
+        putenv('CAPTCHA_CONFIG=' . $file);
+
+        $this->expectException(InvalidConfigException::class);
+        $this->expectExceptionMessage('Claves de configuración no reconocidas: "verifyAtempts".');
+
+        Captcha::instance();
+    }
+
+    /*
+    *  La validación es perezosa en el descubrimiento (el fichero se lee en
+    *  el primer instance()) pero NO en configure(): el typo tiene que quejar
+    *  en la línea que lo escribió, sin tumbar las opciones anteriores, que
+    *  siguen mandando hasta que configure() las sustituya con éxito.
+    */
+    public function testConfigureValidatesOnTheSpotAndKeepsThePreviousOptions(): void
+    {
+        Captcha::configure(['length' => 4]);
+
+        try {
+            Captcha::configure(['verifyAtempts' => 3]);
+            self::fail('configure() debía rechazar la clave desconocida en el momento');
+        } catch (InvalidConfigException $exception) {
+            self::assertStringContainsString('verifyAtempts', $exception->getMessage());
+        }
+
+        self::assertSame(4, Captcha::instance()->config()->length);
     }
 
     /**

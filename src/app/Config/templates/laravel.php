@@ -7,7 +7,8 @@ declare(strict_types=1);
 // Instalación: vendor/bin/captcha install --framework=laravel
 // ─────────────────────────────────────────────────────────────────────────────
 // Laravel carga este fichero con config('captcha'). Conecta el array en
-// un service provider (regístrate en config/app.php providers):
+// un service provider y regístralo en bootstrap/providers.php (Laravel
+// 11 y superior) o en config/app.php, clave providers (Laravel 9 y 10):
 //
 //   use Captcha\Captcha;
 //
@@ -40,10 +41,11 @@ return [
     // 'ttl' => 120,      // Segundos que el código permanece válido.
     // 'output' => 'png', // Formato de imagen; por ahora solo se admite 'png'.
     /*
-     * Dificultad de la imagen:
-     *   'low'    = operandos de hasta 9 (1 dígito)
-     *   'medium' = operandos de hasta 99 (2 dígitos)
-     *   'high'   = operandos de hasta 999 (3 dígitos)
+     * Dificultad de la imagen y, en modo aritmético, de los operandos.
+     * El techo de estos es 10^length − 1 y cada nivel reparte ese
+     * espacio: 'low' hasta su raíz cuadrada, 'medium' una décima parte
+     * y 'high' la mitad, siempre con un suelo de 9. Con length 6 eso
+     * son ~999, ~99 999 y ~499 999, no tres cifras fijas.
      */
     // 'difficulty' => 'medium',
 
@@ -51,10 +53,11 @@ return [
     //   Fuentes bitmap integradas de GD, nunca TTF.
     /*
      * La imagen se dibuja con las fuentes bitmap integradas de GD; el
-     * paquete no carga ficheros de fuente propios. Hay 5 tipografías:
+     * paquete no carga ficheros de fuente propios. Hay 5 tipografías
+     * (las métricas exactas las da el build de GD en runtime):
      *
      *   1 = small (la más pequeña)    3 = medium bold  5 = large (default)
-     *   2 = normal                    4 = grande
+     *   2 = normal                    4 = la más alta
      */
     // 'font' => 5,
     /*

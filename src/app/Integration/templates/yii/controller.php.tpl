@@ -22,9 +22,11 @@ use yii\web\Response;
  * método, así que no hace falta declararla en actions() —ese mapa es solo para
  * acciones sueltas, que se crean por clase— ni tocar controllerMap.
  *
- * Se da por hecho que el proyecto mapea el namespace app\ a src/ en el psr-4 de
- * Composer. Con la estructura básica de Yii2 mueve el fichero a controllers/ y
- * deja el namespace app\controllers.
+ * El namespace es app\controllers y el alias @app del esqueleto resuelve
+ * controllers/ desde la raíz del proyecto: no hace falta mapear nada en el
+ * autoloading. Sin enablePrettyUrl en urlManager la ruta es
+ * index.php?r=captcha/generate, así que comprueba cuál de las dos vale y
+ * apunta ahí al widget con ['endpoint' => ...].
  */
 final class CaptchaController extends Controller
 {

@@ -11,6 +11,7 @@ use Captcha\Contract\RateLimiterInterface;
 use Captcha\Contract\RendererInterface;
 use Captcha\Contract\StorageInterface;
 use Captcha\Exception\GdNotAvailableException;
+use Captcha\Exception\InvalidConfigException;
 use Captcha\Exception\RateLimitException;
 use Captcha\Exception\StorageException;
 use Captcha\Generator\NumericGenerator;
@@ -22,6 +23,7 @@ use Captcha\Result\CaptchaResult;
 use Captcha\Result\VerificationResult;
 use Captcha\Runtime\Host;
 use Captcha\Runtime\StaticLayer;
+use Captcha\Runtime\StorageResolver;
 use Captcha\Storage\RateLimiterFactory;
 use Captcha\Verification\Status;
 use Captcha\Widget\AssetBag;
@@ -126,13 +128,16 @@ final class Captcha
     */
     private ?string $widgetError = null;
 
+    private readonly StorageInterface $storage;
+
     public function __construct(
-        private readonly StorageInterface $storage = new \Captcha\Storage\SessionStorage(),
+        ?StorageInterface $storage = null,
         private readonly Config $config = new Config(),
         GeneratorInterface $generator = new NumericGenerator(),
         private readonly RendererInterface $renderer = new GdRenderer(),
         ?RateLimiterInterface $rateLimiter = null,
     ) {
+        $this->storage = $storage ?? StorageResolver::resolve($config);
         $this->generator = self::ajustaGenerador($generator, $config);
         $this->rateLimiter = $rateLimiter;
         $this->assets = self::assetsEmpaquetados();
@@ -290,6 +295,9 @@ final class Captcha
      * estática reconstruya la instancia con las opciones nuevas.
      *
      * @param array<string, mixed>|Config $options
+     *
+     * @throws InvalidConfigException En el momento de la llamada, cuando un
+     *                                array no pasa la validación estricta.
      */
     public static function configure(Config|array $options = []): void
     {

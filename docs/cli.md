@@ -5,7 +5,7 @@
 ```
 vendor/bin/captcha <comando> [opciones]
 
-  install [framework] [-f|--framework=plain|codeigniter|laravel|symfony|cakephp|yii|janssen]
+  install [framework] [-f|--framework=plain|codeigniter|laravel|symfony|cakephp|yii|yii3|janssen]
                       [-n|--dry-run]
                       Crea el config del framework y el pegamento de integración
                       (middleware/filter/provider/controlador); nunca sobrescribe

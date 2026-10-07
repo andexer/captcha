@@ -52,15 +52,27 @@ final class HostTest extends TestCase
         self::assertFalse(Host::frameworkSessionManaged());
     }
 
-    public function testSessionHostsIncludeCakePhpAndYiiKernels(): void
+    public function testSessionHostsListEverySupportedFrameworkKernel(): void
     {
+        /*
+        *  Los seis kernels tienen que estar en la constante: si alguien
+        *  borra uno de los tres "caros" (CodeIgniter, Laravel, Symfony) nada
+        *  lo notaría, porque la suite no los tiene cargados — aquí se afirma
+        *  la lista completa, no solo la parte que la detección puede ver.
+        */
         $constant = new \ReflectionClassConstant(Host::class, 'SESSION_HOSTS');
         $hosts = $constant->getValue();
 
         self::assertIsArray($hosts);
+        self::assertContains(\CodeIgniter\CodeIgniter::class, $hosts);
+        self::assertContains(\Illuminate\Foundation\Application::class, $hosts);
+        self::assertContains(\Symfony\Component\HttpKernel\Kernel::class, $hosts);
         self::assertContains(\Cake\Core\Application::class, $hosts);
         self::assertContains(\yii\BaseYii::class, $hosts);
+        self::assertContains(\Yiisoft\Yii\Http\Application::class, $hosts);
+        self::assertCount(6, $hosts);
     }
+
     public function testIsWebIsFalseUnderTheCliSapi(): void
     {
         /*

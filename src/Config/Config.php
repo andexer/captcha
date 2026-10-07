@@ -165,9 +165,9 @@ final readonly class Config
      * @param int $ttl Tiempo de vida de un código almacenado, en segundos.
      * @param Difficulty $difficulty Gradúa la intensidad de ruido y distorsión.
      * @param int $font Número de la fuente bitmap integrada de GD (1-5);
-     *                  5 = "large" (9×15), el default. Tipografía sin TTF:
-     *                  1 "small", 3 "medium bold", 4 "tiny". Las métricas se
-     *                  leen de GD en tiempo de renderizado, así que los
+     *                  5 = "large" (9×15), el default; 1 es la más pequeña y
+     *                  4 la más alta (8×16). Tipografía sin TTF. Las métricas
+     *                  se leen de GD en tiempo de renderizado, así que los
      *                  píxeles exactos dependen de ext-gd.
      * @param int|null $fontSize Alto objetivo del glifo en píxeles; null deriva
      *                           la escala entera desde el lienzo (~78 % del

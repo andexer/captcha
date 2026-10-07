@@ -115,6 +115,25 @@ final class DoctorTest extends TestCase
         self::assertSame(0, $report->exitCode(), 'un aviso no tumba el comando');
     }
 
+    /*
+    *  configure() manda y el reporte lo dice: el descubrimiento sigue
+    *  sondeando sus candidatas, pero ninguna se atribuye lo que fijó la
+    *  mano, y no se puede afirmar "ninguno descubierto" cuando sí hay
+    *  opciones.
+    */
+    public function testManualOptionsAreReportedAsSuchAndShadeDiscovery(): void
+    {
+        $file = $this->tempConfig('<?php return ["length" => 9];');
+        putenv('CAPTCHA_CONFIG=' . $file);
+        Captcha::configure(['length' => 5]);
+
+        $text = self::flat((new Doctor())->report());
+
+        self::assertStringContainsString('opciones fijadas con Captcha::configure()', $text);
+        self::assertStringContainsString('(no usado: gana Captcha::configure())', $text);
+        self::assertStringNotContainsString('Config: ninguno descubierto', $text);
+    }
+
     public function testTheDiscoveredConfigIsNamedAndItsPostureIsReported(): void
     {
         $file = $this->tempConfig(self::exportConfig([

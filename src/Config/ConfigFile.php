@@ -9,8 +9,9 @@ namespace Captcha\Config;
  * anclaje a la raíz.
  *
  * El descubrimiento sube caminando desde la ubicación de instalación del
- * paquete y sondea {root}/app/Config/captcha.php, {root}/config/captcha.php
- * y {root}/etc/captcha.php. Esa adivinanza es la única vía hacia la capa
+ * paquete y sondea {root}/app/Config/captcha.php, {root}/config/captcha.php,
+ * {root}/config/packages/captcha.php (retrocompatibilidad con rc) y
+ * {root}/etc/captcha.php. Esa adivinanza es la única vía hacia la capa
  * estática que NO es explícita: en checkouts anidados (un paquete dentro de
  * una aplicación anfitriona, un path repository) podría resolver al config
  * de otra app y cambiar la postura de seguridad en silencio. Los ficheros

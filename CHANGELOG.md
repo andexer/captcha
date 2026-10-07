@@ -5,9 +5,94 @@ Las versiones se cortan con etiquetas de git (`v1.0.0-rc.1`), y
 `bin/captcha --version` lee la etiqueta; sin ella imprime la versión que
 declare el host que instaló el paquete.
 
-## [No publicado]
+## [1.0.0-rc.4] - 2026-10-07
 
-Todavía no hay nada en este apartado. La última versión cortada está abajo.
+Cuarta candidata de publicación. Corrige el pegamento que emitía `install`
+para varios frameworks (instrucciones que no encendían el filtro, rutas que
+nadie resolvía y un widget apuntando a una ruta inexistente) y pone a la par
+config, docs y `doctor` de acuerdo con lo que el código hace de verdad, sin
+cambios de API.
+
+```bash
+composer require andexer/captcha:1.0.0-rc.4
+```
+
+### Corregido
+
+- **La plantilla de Symfony escribía donde el propio Symfony la lee como
+  configuración de contenedor.** `install --framework=symfony` dejaba el config
+  en `config/packages/captcha.php`, y el kernel importa `config/packages/*`
+  (`Kernel/KernelTrait`): al descomentar una opción, el `PhpFileLoader` recibe
+  un array plano de escalares y lanza *The "length" key should contain an
+  array…*, rompiendo `cache:clear` en cuanto tocas el fichero. Ahora escribe en
+  `config/captcha.php`, que además es ancla firmada del descubrimiento.
+  `config/packages/captcha.php` queda en la lista de anclas **solo por
+  retrocompatibilidad** con instalaciones previas.
+
+  > **Migración (Symfony)**: mueve tu fichero
+  > `mv config/packages/captcha.php config/captcha.php`, o deja el array que ya
+  > cargas a mano en `config/services.php` con `Captcha::configure(...)`.
+  > El pegamento de rutas (`config/routes/captcha.yaml`) ya lo importa el glob
+  > `config/routes/*` del microkernel; solo hace falta registrarlo a mano si has
+  > desactivado ese glob.
+
+- **`Captcha::configure()` validaba tarde.** Las claves desconocidas y los
+  valores fuera de rango de un array se comprobaban en el primer `instance()`,
+  no en la propia llamada: el typo aparecía lejos de quien lo escribía. La
+  validación es ahora inmediata y **no** pisa las opciones fijadas
+  anteriormente si el array nuevo no llega a validarse.
+
+- **`new Captcha(...)` ignoraba la opción `storage`.** La construcción manual
+  usaba `SessionStorage` por mucho que el config dijera `'file'`; la elección
+  vivía solo en la capa estática. Hoy ambos caminos pasan por
+  `Runtime\StorageResolver` (`Config::storage`, `'auto'` incluido), y un
+  storage explícito sigue mandando por encima de la opción.
+
+- **Docs que prometían cosas que el código no hacía**: la detección de host no
+  incluye Janssen (bajo ese CMS `'auto'` elige sesión, que es como vive), el
+  cruce `between` ↔ `length` se revisa en `generate()` y no al construir (un
+  `max` que desborda se recorta en silencio), y un preset ya materializado
+  (`Config::forLogin()`) no se reanuda al hacerle `merge(['preset' => ...])`.
+
+- **El pegamento de install que no encendía nada.** Las notas de CodeIgniter
+  solo nombraban el alias del filtro (el alias por sí solo no filtra: hace
+  falta `$methods['POST'] = ['captcha']`), las de CakePHP escribían
+  `$middleware->add(...)` cuando el parámetro de `Application::middleware()`
+  es `$middlewareQueue`, y las de Yii2 apuntaban a `'behaviors'` dentro del
+  array, clave que `Component::__set` rechaza: el formato correcto es
+  `'as captcha'` a nivel superior, con los ficheros en `filters/` y
+  `controllers/` de la raíz (el esqueleto no declara `app\` en Composer).
+
+- **El widget recargaba contra una ruta inexistente.** Su endpoint por defecto
+  es `/captcha/endpoint` y ninguna ruta que emite `install` la ocupa, así que
+  el botón de recarga devolvía 404 en los frameworks de glue. Cada nota y cada
+  plantilla de controlador ya declara ahora `Captcha::widget(['endpoint' =>
+  '/ruta/propia'])`, y una puerta (`IntegrationNotesTest`) impide que esas
+  instrucciones se pierdan o vuelvan a sugerir formas que no funcionan.
+
+- **Cifras y recuentos falsos en el propio config y en los docs.** El preset
+  `login` es de 200×60 y no toca el TTL (no 200×56 con TTL 180 de `strict`),
+  la dificultad aritmética no fija 9/99/999 sino un reparto dentro de
+  `10^length − 1` (raíz / décima / mitad, con suelo 9), la fuente 4 es la más
+  alta y no «tiny», y las plantillas de install son 8 (7 comparten el
+  fragmento; Janssen lleva el suyo). Las cabeceras del config, del endpoint y
+  del generador nombran ya `config/packages/` como lo que es: retrocompat.
+
+- **`doctor` mezclaba dos vías distintas de configuración.** Con
+  `Captcha::configure([...])` puesto, el reporte decía «ninguno descubierto»
+  y marcaba como *cargado* el fichero que el descubrimiento encontraría.
+  Distingue ahora las tres situaciones (fichero, opciones manuales, nada) y
+  etiqueta la candidatura como *no usada* cuando la gana `configure()`.
+
+- **`configure()` convertía el array dos veces.** El array se validaba al
+  fijarlo y se volvía a construir en el primer `instance()`. Se guarda ya
+  como `Config`: una sola conversión y el mismo error inmediato en la línea
+  que lo escribió.
+
+- **Los docs no hablaban de caché.** `configuracion.md` explica ahora qué
+  pasa con opcache `validate_timestamps=0`, `config:cache` de Laravel,
+  `cache:warmup` de Symfony y por qué `reset()` no revierte
+  `configure()` (el config es declarativo, no se muta a mitad de petición).
 
 ## [1.0.0-rc.3] - 2026-10-02
 

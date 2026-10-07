@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Captcha\Tests\Unit\Config;
 
+use Captcha\Config\Config;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Las 7 plantillas de install se generan desde el fragmento compartido
- * (src/app/Config/fragments/options.php) mediante tools/render-templates.php:
- * los ficheros distribuidos deben igualar la salida del generador, de modo
- * que editar el fragmento (o los descriptores por framework) sin regenerar
- * falle de forma ruidosa en lugar de distribuir documentación obsoleta.
+ * Las 8 plantillas de install se generan con tools/render-templates.php
+ * (siete inyectan el fragmento compartido, src/app/Config/fragments/options.php,
+ * y Janssen lleva el suyo): los ficheros distribuidos deben igualar la salida
+ * del generador, de modo que editar el fragmento (o los descriptores por
+ * framework) sin regenerar falle de forma ruidosa en lugar de distribuir
+ * documentación obsoleta.
+ *
+ * La segunda puerta mide lo que la primera no puede ver: el generador solo
+ * demuestra que el fragmento y las plantillas dicen lo mismo, no que digan
+ * TODO lo que el paquete acepta. Sin esta comprobación, una opción nueva en
+ * Config quedaría documentada en ninguna parte y seguiría en verde.
  */
 final class TemplateRenderTest extends TestCase
 {
@@ -19,7 +26,7 @@ final class TemplateRenderTest extends TestCase
     {
         $root = dirname(__DIR__, 3);
 
-        foreach (['plain', 'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'janssen'] as $framework) {
+        foreach (['plain', 'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'yii3', 'janssen'] as $framework) {
             $path = $root . '/src/app/Config/templates/' . $framework . '.php';
             $before = (string) file_get_contents($path);
 
@@ -40,5 +47,28 @@ final class TemplateRenderTest extends TestCase
                 file_put_contents($path, $before);
             }
         }
+    }
+
+    public function testEveryConfigKeyIsDocumentedInTheFragment(): void
+    {
+        $fragment = (string) file_get_contents(
+            dirname(__DIR__, 3) . '/src/app/Config/fragments/options.php',
+        );
+
+        preg_match_all("/^\\s*\\/\\/ '([A-Za-z]+)'\s*=>/m", $fragment, $coincidencias);
+
+        $documentadas = $coincidencias[1];
+
+        self::assertSame(
+            [],
+            array_values(array_diff(Config::KEYS, $documentadas)),
+            'Claves de Config ausentes en el fragmento: la plantilla instalada deja de documentarlas.',
+        );
+
+        self::assertSame(
+            [],
+            array_values(array_diff($documentadas, Config::KEYS)),
+            'Claves documentadas en el fragmento que Config no acepta: la opción ya no existe.',
+        );
     }
 }

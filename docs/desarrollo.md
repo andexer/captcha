@@ -92,7 +92,7 @@ Las ejecutables llevan `generateAttempts: 0` (o capturan `RateLimitException`) p
 - Render con **fuentes bitmap de GD** (1-5): no hay TTF, no hay tipografías personalizadas ni texto no-ASCII en la imagen (los símbolos aritméticos se dibujan en ASCII).
 - El rate limit por IP usa **un archivo por clave** en `sys_get_temp_dir()`: suficiente en un solo proceso; para granjas con muchos nodos inyecta tu propio `RateLimiterInterface` (Redis, etc.).
 - El widget requiere (para el botón de recarga y el `theme` dinámico) algo de JS: es **vanilla/umd**, auto-inicializado, sin dependencias, y degrada bien si el endpoint falla (recarga de página).
-- El pegamento de integración está verificado por **sintaxis y contrato**, no arrancando un proyecto real de cada framework: `install` emite ficheros válidos, CI los compila y comprueba que el config emitido lo encuentra el descubrimiento, pero nadie ha ejecutado Laravel, Symfony, CodeIgniter, CakePHP, Yii o Janssen de verdad contra ellos. Los pasos que requieren registrar un provider o etiquetar un listener se imprimen como texto, así que revisa el primer arranque.
+- El pegamento de integración está verificado por **sintaxis y contrato**, no arrancando un proyecto real de cada framework: `install` emite ficheros válidos, CI los compila y comprueba que el config emitido lo encuentra el descubrimiento, pero nadie ha ejecutado Laravel, Symfony, CodeIgniter, CakePHP, Yii, Yii 3 o Janssen de verdad contra ellos. Los pasos que requieren registrar un provider, meter un middleware en la pila o publicar una ruta se imprimen como texto, así que revisa el primer arranque.
 
 ---
 

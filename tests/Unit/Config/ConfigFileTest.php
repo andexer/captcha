@@ -72,7 +72,7 @@ final class ConfigFileTest extends TestCase
 
     public function testInstallTemplatesAllCarryTheSignature(): void
     {
-        foreach (['plain', 'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'janssen'] as $framework) {
+        foreach (['plain', 'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'yii3', 'janssen'] as $framework) {
             $path = dirname(__DIR__, 3) . '/src/app/Config/templates/' . $framework . '.php';
 
             self::assertFileExists($path);

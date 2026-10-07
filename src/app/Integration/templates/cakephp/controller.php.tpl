@@ -21,7 +21,10 @@ use Captcha\Http\Endpoint;
  * El reto se consume en el POST que lo recibe, que es donde se aplica el
  * middleware.
  *
- * Mapea la ruta en routes.php, dentro de $routes->scope().
+ * Mapea la ruta en routes.php, dentro de $routes->scope(). El widget no apunta
+ * aquí por defecto, así que decláralo al dibujarlo:
+ *
+ *     Captcha::widget(['endpoint' => '/captcha/generate']);
  */
 final class CaptchaController extends AppController
 {

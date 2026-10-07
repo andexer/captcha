@@ -6,8 +6,10 @@ namespace App\EventListener;
 
 use Captcha\Captcha;
 use Captcha\Security\CaptchaGuard;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\KernelEvents;
 
 /**
  * Corta la petición cuando el captcha no pasa, como listener del kernel.
@@ -29,12 +31,14 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * error. Si tu aplicación prefiere reponer el formulario en vez de mostrar un
  * 422, mueve esta lógica al controlador del POST y llama a decide() allí.
  *
- * Etiqueta el servicio en config/services.yaml:
- *
- *     App\EventListener\CaptchaGuardListener:
- *         tags:
- *             - { name: 'kernel.event_listener', event: 'kernel.request' }
+ * El atributo #[AsEventListener(event: KernelEvents::REQUEST)] registra el
+ * listener solo: con el autoconfigure que la receta trae por defecto no hay que
+ * tocar config/services.yaml. Solo si lo has desactivado tendrás que etiquetar
+ * el servicio a mano (name: kernel.event_listener, event: kernel.request) y, en
+ * ese caso, quitar el atributo de la clase: entrando por las dos vías,
+ * decide() se ejecutaría dos veces y la segunda vería un reto ya consumido.
  */
+#[AsEventListener(event: KernelEvents::REQUEST)]
 final class CaptchaGuardListener
 {
     public function __invoke(RequestEvent $event): void

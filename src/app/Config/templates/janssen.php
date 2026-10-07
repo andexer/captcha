@@ -8,7 +8,8 @@ declare(strict_types=1);
 // ─────────────────────────────────────────────────────────────────────────────
 // La capa estática descubre este fichero automáticamente (orden: env
 // CAPTCHA_CONFIG → raíz del proyecto app/Config/captcha.php → config/ →
-// etc/ → los mismos en cwd) y sus valores alimentan tanto widget() como
+// etc/ → los mismos en cwd; config/packages/ queda solo por
+// retrocompatibilidad) y sus valores alimentan tanto widget() como
 // el veredicto del guard. Los valores de abajo están activos: ajústalos a
 // tu gusto y borra las líneas que no uses, porque toda clave es opcional.
 //
@@ -33,11 +34,11 @@ return [
     'height' => 60,
     'ttl' => 120,
 
-    // Dificultad visual: operandos de hasta 9 (low), 99 (medium) o
-    // 999 (high).
+    // Dificultad visual; en aritmético, los operandos caben dentro
+    // del techo por longitud (low raíz, medium décima, high mitad).
     'difficulty' => 'medium',
 
-    // Tipografía bitmap integrada de GD (1-5; la 5 es la mayor) y alto
+    // Tipografía bitmap integrada de GD (1-5; la 5 es la default) y alto
     // del glifo en píxeles; null lo deja automático.
     'font' => 5,
     'fontSize' => 35,

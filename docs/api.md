@@ -23,13 +23,15 @@ Firma del constructor:
 
 ```php
 new Captcha(
-    ?StorageInterface     $storage = new SessionStorage(),
+    ?StorageInterface     $storage = null,   // null = resolver desde Config::storage
     Config                $config  = new Config(),
     GeneratorInterface    $generator = new NumericGenerator(),
     RendererInterface     $renderer = new GdRenderer(),
     ?RateLimiterInterface $rateLimiter = null,
 )
 ```
+
+Si no inyectas `$storage`, se resuelve desde `Config::storage` con la misma regla de la capa estática (`'auto'` mira si hay un framework con la sesión PHP a cargo). Un storage explícito manda siempre sobre la opción.
 
 Nota interesante: si el config pide aritmética y el generador sigue siendo el `NumericGenerator` por defecto, se **reenvuelve automáticamente** con tus `operations`, `difficulty` y `between`. Un generador inyectado a mano se respeta tal cual.
 
@@ -126,11 +128,13 @@ Las respuestas JSON llevan `Cache-Control: no-store, no-cache, must-revalidate`,
 | Clase | Dónde vive el reto | Cuándo elegirla |
 |---|---|---|
 | `SessionStorage` (legacy) | `$_SESSION['_captcha']` | PHP plano / CLI. Arranca la sesión de forma **diferida**, en el primer acceso real (construir la clase nunca preempta la sesión del host). |
-| `FileStorage` | Un JSON por reto, nombre = `sha256(id)` | **Default `'auto'` bajo frameworks** que gestionan la sesión (CodeIgniter, Laravel, Symfony, CakePHP, Yii, Janssen): funciona sin tocar la sesión del host. También host sin sesiones o multi-nodo con directorio común. `consume()` con `flock` = anti-replay real bajo concurrencia. |
+| `FileStorage` | Un JSON por reto, nombre = `sha256(id)` | **Default `'auto'` bajo frameworks** que gestionan la sesión (CodeIgniter, Laravel, Symfony, CakePHP, Yii, Yii 3): funciona sin tocar la sesión del host. También host sin sesiones o multi-nodo con directorio común. `consume()` con `flock` = anti-replay real bajo concurrencia. |
 | `ArrayStorage` | Memoria del proceso | CLI, colas, tests (reloj inyectable, sin `sleep()`). |
 
-El storage efectivo de la capa estática se elige con la opción `storage`
-(`'auto'` = el detector de host decide; ver la [tabla de opciones](configuracion.md#tabla-completa-de-opciones)).
+La opción `storage` decide el backend en los dos caminos (`'auto'` = el
+detector de host decide; ver la [tabla de opciones](configuracion.md#tabla-completa-de-opciones)):
+en la capa estática y también en `new Captcha(config: ...)` cuando no
+inyectes un storage propio — en ese caso manda lo que pases a mano.
 `Captcha::instance()->storage()` lo inspecciona, y `doctor` lo reporta.
 
 Implementa `Captcha\Contract\StorageInterface` (`put`, `get`, `consume`, `has`, `forget`) para tu propio backend (Redis, DB...). El contrato exige que `consume()` sea atómico: **exactamente un** llamador obtiene el código bajo concurrencia.
