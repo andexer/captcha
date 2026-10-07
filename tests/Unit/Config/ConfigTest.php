@@ -50,6 +50,22 @@ final class ConfigTest extends TestCase
         self::assertFalse($config->distortion);
     }
 
+    /**
+     * Asimetría deliberada entre las dos rutas de construcción: el constructor
+     * exige los tipos PHP nativos, así que un valor de otro tipo es un
+     * TypeError de PHP y no una excepción del paquete, mientras que la misma
+     * entrada por array (ver testFromArrayRejectsNonBoolNoise) es
+     * InvalidConfigException con mensaje en español. Ahí no hay tipos que
+     * delataran el fallo antes, porque el array no los trae. El rango malo
+     * sí es InvalidConfigException en las dos vías.
+     */
+    public function testNativeTypeMismatchIsATypeErrorOnTheClassPath(): void
+    {
+        $this->expectException(\TypeError::class);
+
+        new Config(noise: 'yes');
+    }
+
     public function testRejectsLengthBelowMinimum(): void
     {
         $this->expectException(InvalidConfigException::class);

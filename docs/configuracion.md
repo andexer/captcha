@@ -202,6 +202,8 @@ El constructor exige tipos nativos: `difficulty` recibe el enum `Captcha\Config\
 
 Toda opción se valida **al construir** el `Config` («inmutable»): un valor inválido lanza `InvalidConfigException` (hija de `CaptchaException`) y la instancia jamás se observa en un estado inválido. En arrays, las **claves desconocidas lanzan** `InvalidConfigException` por defecto (modo **estricto**, para que un typo no desactive silenciosamente protección alguna); con `Config::fromArray($opts, strict: false)` se ignoran, como hacía la versión anterior.
 
+> **Tipos en la ruta `new Config(...)`:** esa ruta exige los tipos PHP nativos (ver la nota de la tabla completa), así que un valor de otro tipo —`noise: 'yes'`— es un `TypeError` de PHP y no un `InvalidConfigException`: lo captura `catch (\TypeError $e)`, **no** el `catch (\Captcha\Exception\CaptchaException $e)` del paquete. Es lo contrario que por array, que no tiene tipos y por eso reporta el desajuste como `InvalidConfigException` en español. En los dos caminos, un valor **con** el tipo correcto pero fuera de rango o desconocido es siempre `InvalidConfigException`.
+
 > **Única excepción de momento:** el cruce `between` ↔ `length` se comprueba en `generate()`, no al construir. El paquete prefiere **recortar** el rango a denegar el captcha: si `max` no cabe en `length` dígitos se acota al techo, y solo lanza `InvalidConfigException` cuando el `min` no cabe — y con el mensaje de la tabla de abajo.
 
 | Clave | Regla | Mensaje exacto (en español) |

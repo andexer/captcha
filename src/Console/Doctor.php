@@ -35,8 +35,9 @@ use Throwable;
  *   - Error    impide que el captcha funcione: falta ext-gd, la versión de
  *              PHP no sirve o el config escrito no arranca la fachada.
  *   - Warning  una configuración que probablemente no es la pretendida: rate
- *              limits a cero, honeypot apagado, o un config anclado sin firma
- *              que el descubrimiento está ignorando en silencio.
+ *              limits a cero, honeypot apagado, un config anclado sin firma
+ *              que el descubrimiento está ignorando en silencio, o una
+ *              CAPTCHA_CONFIG que no apunta a ningún fichero.
  *   - Notice   lo que conviene saber pero no está mal: no hay config y se
  *              usan los defaults, no se declara ningún proxy de confianza,
  *              o se está ejecutando en CLI.
@@ -176,9 +177,11 @@ final class Doctor
     /**
      * Traduce una candidatura del descubrimiento en un hallazgo, o null si no
      * hay nada que decir: un fichero que no existe no es un problema, es lo
-     * normal cuando el discovery prueba varias anclas.
+     * normal cuando el discovery prueba varias anclas. La única excepción es
+     * la env: si la ruta viene de CAPTCHA_CONFIG y no hay fichero, no es una
+     * ancla sondeada sino una intención rota que hay que nombrar.
      *
-     * @param array{path: string, loaded: bool, anchored: bool, signed: bool} $candidate
+     * @param array{path: string, loaded: bool, anchored: bool, env: bool, signed: bool} $candidate
      * @param bool $manual Hay opciones de configure(): el descubrimiento no
      *                     decide, aunque encuentre un fichero válido.
      */
@@ -189,13 +192,31 @@ final class Doctor
         }
 
         if (!is_file($candidate['path'])) {
-            return null;
+            return $candidate['env'] ? $this->envRota($candidate['path']) : null;
         }
         if ($candidate['anchored'] && !$candidate['signed']) {
             return $this->anclaSinFirma($candidate['path']);
         }
 
         return $this->candidaturaSombreada($candidate['path']);
+    }
+
+    /**
+     * La env apunta a un hueco: el descubrimiento la salta y sigue con las
+     * anclas (silencio en runtime, a propósito), pero un default elegido
+     * porque una variable está mal escrita es justo lo que este reporte
+     * existe para descubrir, así que nombra la variable y la ruta.
+     */
+    private function envRota(string $path): Finding
+    {
+        $texto = $path === ''
+            ? 'CAPTCHA_CONFIG está vacía: el descubrimiento la salta y sigue con las anclas'
+            : sprintf(
+                'CAPTCHA_CONFIG apunta a %s, que no existe: el descubrimiento la salta y sigue con las anclas',
+                $path,
+            );
+
+        return $this->finding(Severity::Warning, $texto, 1);
     }
 
     /**

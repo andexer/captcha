@@ -133,11 +133,12 @@ final class StaticLayer
      * Transparencia del descubrimiento para Console\Doctor: cada candidata
      * en orden de sondeo con la decisión que el descubrimiento tomó o tomaría
      * — cargada (la ganadora), ignorada (un fichero anclado sin la firma del
-     * paquete) o sombreada (un fichero válido que perdió contra una
-     * candidata anterior). Introspección pura y de solo lectura; jamás
-     * construye la instancia.
+     * paquete), rota (una CAPTCHA_CONFIG que no apunta a ningún fichero) o
+     * sombreada (un fichero válido que perdió contra una candidata
+     * anterior). Introspección pura y de solo lectura; jamás construye la
+     * instancia.
      *
-     * @return list<array{path: string, anchored: bool, loaded: bool, signed: bool}>
+     * @return list<array{path: string, anchored: bool, env: bool, loaded: bool, signed: bool}>
      */
     public static function candidatesForDiagnostics(): array
     {
@@ -152,9 +153,9 @@ final class StaticLayer
     }
 
     /**
-     * @param array{path: string, anchored: bool} $candidate
+     * @param array{path: string, anchored: bool, env: bool} $candidate
      *
-     * @return array{path: string, anchored: bool, loaded: bool, signed: bool}
+     * @return array{path: string, anchored: bool, env: bool, loaded: bool, signed: bool}
      */
     private static function describeCandidata(array $candidate, ?string $winner): array
     {
@@ -163,6 +164,7 @@ final class StaticLayer
         return [
             'path' => $path,
             'anchored' => $candidate['anchored'],
+            'env' => $candidate['env'],
             'loaded' => $winner !== null && $winner === $path,
             'signed' => !$candidate['anchored'] || (is_file($path) && ConfigFile::carriesSignature($path)),
         ];
@@ -244,6 +246,11 @@ final class StaticLayer
     /**
      * Primera candidata de configuración existente y aceptada, o null.
      *
+     * Una CAPTCHA_CONFIG vacío o que apunte a un fichero inexistente se salta
+     * sin más: en runtime el silencio es a propósito (siguen las anclas y,
+     * si no, los defaults), y nombrar la variable rota le toca al reporte de
+     * Console\Doctor.
+     *
      * Las candidatas ancladas a la raíz deben llevar la firma del paquete
      * (opt-in): el anclaje es la única vía de descubrimiento que adivina, así
      * que en un checkout anidado (paquete dentro de un proyecto host) podría
@@ -266,7 +273,7 @@ final class StaticLayer
      * Una candidatura se acepta si existe y (si es ancla) lleva la firma. El
      * diagnóstico de los anclados sin firma queda para Console\Doctor.
      *
-     * @param array{path: string, anchored: bool} $candidate
+     * @param array{path: string, anchored: bool, env: bool} $candidate
      */
     private static function esAnclaValida(array $candidate): bool
     {
@@ -282,7 +289,7 @@ final class StaticLayer
     }
 
     /**
-     * @return list<array{path: string, anchored: bool}>
+     * @return list<array{path: string, anchored: bool, env: bool}>
      */
     private static function candidates(): array
     {
@@ -294,15 +301,18 @@ final class StaticLayer
     }
 
     /**
-     * La ruta que llegue por el entorno, si viene.
+     * La ruta que llegue por el entorno, si viene. Una variable presente pero
+     * vacía también se expone: el descubrimiento la salta igual que a una
+     * ruta inexistente, pero Doctor necesita poder nombrarla en lugar de
+     * callarla.
      *
-     * @return list<array{path: string, anchored: bool}>
+     * @return list<array{path: string, anchored: bool, env: bool}>
      */
     private static function envCandidates(): array
     {
         $env = getenv('CAPTCHA_CONFIG');
 
-        return is_string($env) && $env !== '' ? [['path' => $env, 'anchored' => false]] : [];
+        return is_string($env) ? [['path' => $env, 'anchored' => false, 'env' => true]] : [];
     }
 
     /**
@@ -311,7 +321,7 @@ final class StaticLayer
      *
      * @param list<string> $roots
      *
-     * @return list<array{path: string, anchored: bool}>
+     * @return list<array{path: string, anchored: bool, env: bool}>
      */
     private static function configCandidates(array $roots, bool $anchored): array
     {
@@ -319,7 +329,7 @@ final class StaticLayer
 
         foreach ($roots as $root) {
             foreach (self::CONFIG_SUBPATHS as $subpath) {
-                $candidates[] = ['path' => $root . '/' . $subpath, 'anchored' => $anchored];
+                $candidates[] = ['path' => $root . '/' . $subpath, 'anchored' => $anchored, 'env' => false];
             }
         }
 

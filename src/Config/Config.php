@@ -225,6 +225,10 @@ final readonly class Config
      *                                     la cabecera se ignora.
      *
      * @throws InvalidConfigException Cuando alguna opción está fuera de rango.
+     * @throws \TypeError Cuando un argumento no cumple su tipo nativo: el
+     *                    constructor exige int/bool/string/Difficulty y no
+     *                    convierte; la misma entrada por array la reporta
+     *                    InvalidConfigException, que es quien estrecha ahí.
      */
     public function __construct(
         public int $length = self::DEFAULT_LENGTH,

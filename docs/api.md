@@ -152,6 +152,8 @@ Todas extienden `CaptchaException` (que a su vez extiende `\RuntimeException`):
 
 Un solo `catch (\Captcha\Exception\CaptchaException $e)` cubre todo el paquete.
 
+**Única excepción a ese `catch`:** un argumento con el tipo PHP equivocado en `new Config(...)` (o en un setter del builder) es un `\TypeError` nativo, que no hereda de `CaptchaException`. Solo puede ocurrir en código tuyo —las rutas sin tipos (`fromArray()`, `configure()`, el fichero de config) reportan el mismo desajuste como `InvalidConfigException`—, y un valor con el tipo correcto pero fuera de rango es `InvalidConfigException` en las dos. Detalle en [configuracion.md](configuracion.md#validaciones).
+
 ### Contratos (extensibilidad)
 
 - `GeneratorInterface::generate(int $length): string` — generador propio (p. ej. palabras, emojis...).

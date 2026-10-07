@@ -231,6 +231,7 @@ final class StaticLayerTest extends TestCase
         foreach ($candidates as $candidate) {
             self::assertArrayHasKey('path', $candidate);
             self::assertArrayHasKey('anchored', $candidate);
+            self::assertArrayHasKey('env', $candidate);
             self::assertArrayHasKey('loaded', $candidate);
             self::assertArrayHasKey('signed', $candidate);
         }
@@ -246,6 +247,33 @@ final class StaticLayerTest extends TestCase
             self::assertCount(1, $loaded);
             self::assertSame($winner, $loaded[0]['path']);
         }
+    }
+
+    /**
+     * La env rota o vacía se expone como candidatura propia: el
+     * descubrimiento la salta (configPath() no la devuelve), pero Doctor
+     * necesita ver que la variable está puesta para poder nombrarla en lugar
+     * de reportar un silencio que se leería como "sin configuración".
+     */
+    public function testABrokenOrEmptyEnvironmentCandidateIsExposedAndSkipped(): void
+    {
+        putenv('CAPTCHA_CONFIG=/ruta/que/no/existe.php');
+
+        $rota = StaticLayer::candidatesForDiagnostics()[0];
+
+        self::assertTrue($rota['env']);
+        self::assertSame('/ruta/que/no/existe.php', $rota['path']);
+        self::assertFalse($rota['loaded']);
+        self::assertNull(Captcha::configPath());
+
+        putenv('CAPTCHA_CONFIG=');
+
+        $vacia = StaticLayer::candidatesForDiagnostics()[0];
+
+        self::assertTrue($vacia['env']);
+        self::assertSame('', $vacia['path']);
+        self::assertFalse($vacia['loaded']);
+        self::assertNull(Captcha::configPath());
     }
 
     public function testAutoStorageResolvesPerHostOutsideTheFacade(): void

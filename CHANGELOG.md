@@ -5,6 +5,29 @@ Las versiones se cortan con etiquetas de git (`v1.0.0-rc.1`), y
 `bin/captcha --version` lee la etiqueta; sin ella imprime la versión que
 declare el host que instaló el paquete.
 
+## [No publicado]
+
+Cambios posteriores a `1.0.0-rc.4`, aún sin etiqueta.
+
+### Corregido
+
+- **`doctor` ahora nombra una `CAPTCHA_CONFIG` rota.** Cuando la variable de
+  entorno está vacía o apunta a un fichero inexistente, el descubrimiento la
+  salta en silencio (comportamiento de runtime a propósito) y el reporte lo
+  leía como «sin configuración». Ahora emite un **aviso** que nombra la
+  variable y la ruta; en `doctor --strict` la rotura tumba el comando. La
+  capa estática expone el origen de cada candidata (`env`) para que el
+  diagnóstico no lo recalcule aparte.
+
+### Documentado
+
+- **Asimetría de la ruta `new Config(...)` frente a la array.** El
+  constructor exige los tipos PHP nativos, así que un valor con el tipo
+  equivocado (`noise: 'yes'`) es un `TypeError` y no un
+  `InvalidConfigException`; la misma entrada por array sí lo es. Explicado en
+  `docs/configuracion.md` (#validaciones), `docs/api.md` (§ Excepciones) y el
+  PHPDoc de `Config::__construct`, con un test que fija el comportamiento.
+
 ## [1.0.0-rc.4] - 2026-10-07
 
 Cuarta candidata de publicación. Corrige el pegamento que emitía `install`

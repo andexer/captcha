@@ -36,6 +36,17 @@ parameters:
             paths:
                 - src/Runtime/Host.php
 
+        # El constructor delega la comprobación de tipos a los tipos nativos
+        # de PHP (ver el PHPDoc de Config::__construct y docs/configuracion.md):
+        # un argumento de otro tipo es un TypeError que el motor lanza en la
+        # llamada, antes de entrar al cuerpo, así que PHPStan lo ve como
+        # "no lanzado" desde el interior. Es una excepción deliberada del
+        # paquete —no hereda de CaptchaException— y por eso se documenta en
+        # el PHPDoc junto a InvalidConfigException en lugar de desactivarse.
+        -
+            message: '#::__construct\(\) has TypeError in PHPDoc @throws tag but it.s not thrown#'
+            path: src/Config/Config.php
+
         # Comprobaciones defensivas CONTRA superglobales, que el paquete trata
         # como entrada no confiable. Los stubs de PHPStan declaran $_POST y
         # session_get_cookie_params() como arrays con todas las claves

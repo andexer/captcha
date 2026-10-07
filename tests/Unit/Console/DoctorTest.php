@@ -8,6 +8,7 @@ use Captcha\Captcha;
 use Captcha\Config\ConfigFile;
 use Captcha\Console\Doctor;
 use Captcha\Console\DoctorReport;
+use Captcha\Console\Finding;
 use Captcha\Console\Severity;
 use Captcha\Runtime\Host;
 use PHPUnit\Framework\TestCase;
@@ -228,6 +229,51 @@ final class DoctorTest extends TestCase
         self::assertStringContainsString('cargado  ' . $ganador, $text);
         self::assertStringContainsString('válido   ' . $sombreado, $text);
         self::assertStringContainsString('sombreado por una candidatura anterior', $text);
+    }
+
+    /**
+     * Una CAPTCHA_CONFIG rota no se confunde con "no hay config": en runtime
+     * el descubrimiento la salta y sigue con las anclas (silencio a
+     * propósito), pero si el reporte la calla el typo acaba leyéndose como
+     * una instalación que eligió defaults, que es justo lo contrario de lo
+     * que pasó.
+     */
+    public function testABrokenEnvironmentVariableIsNamedAndGradedAsWarning(): void
+    {
+        putenv('CAPTCHA_CONFIG=' . sys_get_temp_dir() . '/captcha-que-no-existe.php');
+        Captcha::configure([]);
+
+        $report = (new Doctor())->report();
+        $text = self::flat($report);
+
+        self::assertStringContainsString('CAPTCHA_CONFIG apunta a ' . sys_get_temp_dir() . '/captcha-que-no-existe.php', $text);
+        self::assertStringContainsString('el descubrimiento la salta', $text);
+        self::assertStringNotContainsString('Config descubierto: ', $text, 'el fichero no existe, no se descubre nada');
+
+        $rotos = array_values(array_filter(
+            $report->findings,
+            static fn(Finding $finding): bool => str_contains($finding->text, 'CAPTCHA_CONFIG apunta a'),
+        ));
+
+        self::assertCount(1, $rotos);
+        self::assertSame(Severity::Warning, $rotos[0]->severity, 'una env rota es aviso, no error');
+        self::assertSame(1, $report->exitCode(strict: true), 'en --strict la env rota sí tumba');
+    }
+
+    /**
+     * Una env presente pero vacía tampoco es una env ausente: la variable está
+     * puesta, así que se reporta como intención rota y no se disfraza de
+     * "ninguno descubierto".
+     */
+    public function testAnEmptyEnvironmentVariableIsReportedAsSuch(): void
+    {
+        putenv('CAPTCHA_CONFIG=');
+        Captcha::configure([]);
+
+        $text = self::flat((new Doctor())->report());
+
+        self::assertStringContainsString('CAPTCHA_CONFIG está vacía', $text);
+        self::assertStringContainsString('Config: ninguno descubierto', $text);
     }
 
     /**
