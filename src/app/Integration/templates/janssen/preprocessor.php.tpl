@@ -15,28 +15,15 @@ use Janssen\Engine\Route;
  * Corta el POST del formulario cuando el captcha no es válido.
  *
  * Regístralo en app/Config/engine.php, en 'preprocessors', para POST y justo
- * después de DecryptRoute (quien fija la acción del usuario): montándose
- * antes, el captcha se decide sin haber comparado nunca las credenciales.
+ * después de DecryptRoute (quien fija la acción): montándose antes, el captcha
+ * se decidiría sin haber comparado las credenciales nunca.
  *
- * Un preprocesador es global y corre en todas las peticiones, así que lo que
- * decide es a qué POST corta, y eso está declarado en la constante ACCIONES,
- * arriba del todo: a la izquierda la acción en 'controladora@metodo', a la
- * derecha la ruta a la que vuelve el formulario al rechazarlo. Las acciones
- * ausentes pasan de largo, de modo que uno solo protege login y registro.
+ * La constante ACCIONES declara a qué POST corta ('controladora@metodo' =>
+ * ruta a la que vuelve el formulario); vacía, corta todos los POST.
  *
- * Una lista vacía corta todos los POST, como el middleware de Laravel y el
- * filter de CodeIgniter: encaja cuando el único formulario con captcha es el
- * que quieres proteger. Sin acción que devolver se vuelve a la raíz, porque no
- * hay un formulario único al que regresar.
- *
- * Delega el veredicto en el guard del paquete y no en Captcha::check() porque
- * decide() trae el estado HTTP y el mensaje ya resueltos, y exige
- * requireSubmission: true: sin él, un POST sin campo oculto se decide como "no
- * había envío" y pasa.
- *
- * Lo que no pasa vuelve al formulario con un flash de Janssen; el mensaje del
- * paquete está ya en español. El reto se consume siempre, así que el usuario
- * tiene que resolver uno nuevo.
+ * Delega el veredicto en el guard del paquete con requireSubmission: true y
+ * deja el mensaje en español como flash de Janssen; el reto se consume
+ * siempre, así que toca resolver uno nuevo.
  */
 final class CaptchaGuard extends Preprocessor
 {

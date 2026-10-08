@@ -16,20 +16,14 @@ use Captcha\Captcha as CaptchaPackage;
 /**
  * Ruta GET que alimenta la recarga AJAX del widget.
  *
- * El endpoint del paquete ya resuelve 200 con el reto, 400 si la acción no
- * existe y 429 al superar el techo anti-flood, así que el controlador se limita
- * a volcar su tupla. Lo único que decide es qué hacer con un action que no sea
- * cadena: ?action[]=x llega como array desde CodeIgniter y pasarlo tal cual a
- * dispatch() sería un error de tipos en vez de un 400.
- *
- * No lleva protección: la ruta solo genera retos. Quien tenga que validar un
- * código lo hace el CaptchaFilter aplicado al POST que lo recibe, y el POST
- * sigue siendo el único sitio donde se consume el reto.
- *
- * Regístrala en app/Config/Routes.php, dentro de $routes->get(). El widget no
- * apunta aquí por defecto, así que decláralo al dibujarlo:
+ * Regístrala en app/Config/Routes.php, dentro de $routes->get(); el widget no
+ * apunta aquí por defecto:
  *
  *     Captcha::widget(['endpoint' => '/captcha/generate']);
+ *
+ * No lleva protección: la ruta solo genera retos; el CaptchaFilter valida el
+ * POST. Un action no cadena (?action[]=x) se manda vacío para que el endpoint
+ * responda 400 en vez de un error de tipos.
  */
 final class Captcha extends BaseController
 {

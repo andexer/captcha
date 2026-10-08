@@ -64,6 +64,14 @@ Además de `CAPTCHA_CONFIG` (que apunta al fichero), **cada opción** de
 Así un despliegue cambia un dial sin tocar el fichero, y `doctor` lo nombra en
 su reporte (`Env por opción: N variable(s) CAPTCHA_* (...)`).
 
+Los nombres van **pegados en mayúsculas** (`rateLimitByIp` →
+`CAPTCHA_RATELIMITBYIP`), y las claves multipalabra admiten también la
+variante **guionada** (`CAPTCHA_RATE_LIMIT_BY_IP`), que es la forma habitual
+en un `.env` 12-factor; si existen las dos, manda la pegada. Un nombre que no
+es ninguno de los dos cae en el «sufijo desconocido» de más abajo: si dudas,
+lanza `captcha doctor` con la env puesta, que lista las variables que está
+leyendo.
+
 **Precedencia**: `Captcha::configure([...])` > variables `CAPTCHA_*` > fichero
 descubierto (env, anclas, cwd) > defaults. `CAPTCHA_CONFIG` sigue siendo solo la
 puntera al fichero, nunca una opción.

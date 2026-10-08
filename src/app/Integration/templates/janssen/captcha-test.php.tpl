@@ -3,13 +3,10 @@
 declare(strict_types=1);
 
 /*
- * Banco de pruebas del widget: página que dibuja el captcha con su CSS y su
- * JS inline (injectAssets por defecto), sin enlazar ningún asset del paquete.
- *
- * Sirve para ver de un vistazo el reto que emite el paquete, su botón de
- * recarga (que pega contra el endpoint /captcha) y los mensajes que el propio
- * widget pinta, sin nada en medio. La verificación del código se ejercita en
- * tu formulario protegido por el CaptchaGuard; aquí no hay POST que enviar.
+ * Banco de pruebas del widget: dibuja el captcha con su CSS y su JS inline
+ * (injectAssets por defecto), sin enlazar ningún asset del paquete. No hay
+ * POST que enviar: la verificación se ejercita en tu formulario protegido
+ * por el CaptchaGuard.
  *
  * Regístrala en app/Config/routes.php para encenderla:
  *
@@ -18,17 +15,18 @@ declare(strict_types=1);
  *    'guard' => 'nobody'],
  */
 
-/* 
-* para los errores
-$href = static fn (string $path): string => Janssen\Engine\Route::hrefTo($path);
-$flashes = Janssen\Helpers\FlashMessage::all();
-
-foreach ($flashes as $flash) {
-    $type = $flash['type'] === 'error' ? 'danger' : 'info';
-    $message = htmlspecialchars((string) $flash['message']);
-    echo "<div class=\"notification is-{$type}\">{$message}</div>\n";
-}
-*/
+/*
+ * Bloque de repaso: cómo se pintarían los flashes de error.
+ *
+ * $href = static fn (string $path): string => Janssen\Engine\Route::hrefTo($path);
+ * $flashes = Janssen\Helpers\FlashMessage::all();
+ *
+ * foreach ($flashes as $flash) {
+ *     $type = $flash['type'] === 'error' ? 'danger' : 'info';
+ *     $message = htmlspecialchars((string) $flash['message']);
+ *     echo "<div class=\"notification is-{$type}\">{$message}</div>\n";
+ * }
+ */
 
 ?>
 <!DOCTYPE html>

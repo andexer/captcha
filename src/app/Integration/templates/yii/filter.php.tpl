@@ -12,28 +12,23 @@ use yii\web\HttpException;
 /**
  * Corta la acción cuando el captcha no pasa, como behavior de Yii.
  *
- * beforeAction() devuelve bool y, al contrario que en un middleware, un false
- * basta para abortar. Se filtra el método antes de verificar porque en GET el
- * reto aún no se ha generado, y parent::beforeAction() es lo que permite que el
- * resto de behaviors del árbol sigan ejecutándose: devolver false aquí
- * cortaría también los que tuvieras más abajo.
+ * beforeAction() devuelve bool: un false basta para abortar, y
+ * parent::beforeAction() es lo que deja seguir al resto de behaviors. El
+ * método se filtra antes de verificar porque en GET el reto aún no existe.
  *
- * requireSubmission: true es lo que cierra el agujero. Con false, un POST que
- * omite el campo oculto captcha_id pasaría como válido y borrar ese input
- * bastaría para saltarse la comprobación.
+ * requireSubmission: true es lo que cierra el agujero: con false, un POST que
+ * omite el campo oculto captcha_id pasaría como válido.
  *
- * La denegación lanza HttpException con el estado que sugiere el guard. Si tu
- * login prefiere reponer el formulario en vez de mostrar un 422, sustituye el
- * throw por un flash más un redirect a la acción anterior.
+ * La denegación lanza HttpException con el estado del guard; si tu login
+ * prefiere reponer el formulario, sustituye el throw por un flash más un
+ * redirect a la acción anterior.
  *
  * Regístralo a nivel superior de config/web.php, con el prefijo as:
  *
  *     'as captcha' => \app\filters\CaptchaFilter::class,
  *
  * Las behaviors a secas no son una clave de config válida a ese nivel: Yii
- * lanza InvalidCallException. Con el prefijo as la aplicación ensambla el
- * filtro como behavior propio, y Controller::runAction le pasa por delante
- * cada acción antes de ejecutarla.
+ * lanza InvalidCallException.
  */
 final class CaptchaFilter extends ActionFilter
 {

@@ -155,6 +155,29 @@ final class DoctorTest extends TestCase
         self::assertStringContainsString('6 dígitos', $text, 'el efectivo sí refleja la env');
     }
 
+    /**
+     * Una booleana env con un valor que el lector no admite mata el arranque
+     * de la app, y doctor es la herramienta que tiene que poder explicarlo:
+     * el informe se renderiza entero con su resumen en lugar de una línea
+     * suelta en la terminal.
+     */
+    public function testInvalidEnvironmentValueIsReportedAsErrorFinding(): void
+    {
+        putenv('CAPTCHA_NOISE=maybe');
+
+        $report = (new Doctor())->report();
+        $text = self::flat($report);
+
+        self::assertStringContainsString('Env por opción inválida', $text);
+        self::assertSame(
+            Severity::Error,
+            $this->severityOf($report, 'Env por opción inválida'),
+            'una env inválida rompe el arranque, no es informativa',
+        );
+        self::assertStringContainsString("'noise' por env debe ser un booleano", $text);
+        self::assertStringContainsString('Resumen:', $text, 'el informe se cierra con su resumen');
+    }
+
     public function testTheDiscoveredConfigIsNamedAndItsPostureIsReported(): void
     {
         $file = $this->tempConfig(self::exportConfig([
@@ -372,12 +395,14 @@ final class DoctorTest extends TestCase
 
     /**
      * Ninguna CAPTCHA_* por opción puede sobrevivir entre pruebas: el env es
-     * estado global del proceso y contaminaría al resto de la suite.
+     * estado global del proceso y contaminaría al resto de la suite. Cada
+     * opción se limpia en sus dos grafías, la pegada y la guionada.
      */
     private static function limpiarEnvPorOpcion(): void
     {
         foreach (Config::KEYS as $key) {
             putenv('CAPTCHA_' . strtoupper($key));
+            putenv('CAPTCHA_' . strtoupper(preg_replace('/(?<!^)[A-Z]/', '_$0', $key) ?? $key));
         }
     }
 

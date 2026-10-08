@@ -13,15 +13,11 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Corta la petición cuando el captcha no pasa.
  *
- * Solo actúa sobre el POST: un GET llega intacto al pipeline y el widget dibuja
- * el reto en la respuesta. Si el middleware verificara también la primera
- * visita, el usuario vería un formulario vacío con un error que no sabe
- * resolver.
+ * Solo actúa sobre el POST: un GET llega intacto al pipeline y el widget
+ * dibuja el reto en la respuesta.
  *
- * requireSubmission: true es lo que hace seguro este middleware. Sin ese
- * argumento, una petición POST que ni siquiera trae el campo oculto captcha_id
- * pasa como válida, y basta con que alguien omita ese input para saltarse la
- * comprobación entera.
+ * requireSubmission: true es lo que hace seguro este middleware: sin ese
+ * argumento, un POST que omite el campo oculto captcha_id pasa como válido.
  *
  * Registra el middleware en bootstrap/app.php, dentro de ->withMiddleware()
  * (Laravel 11 y superior); en Laravel 9 y 10 el sitio es app/Http/Kernel.php.

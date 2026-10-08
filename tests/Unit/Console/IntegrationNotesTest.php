@@ -23,6 +23,11 @@ use PHPUnit\Framework\TestCase;
  * La cuarta es la del widget: su endpoint por defecto es /captcha/endpoint y
  * ninguna ruta que emitimos la ocupa, así que quien dibuja el widget tiene
  * que declarar la suya, sea en las notas o en la plantilla que recibe.
+ *
+ * Además congela la forma de cada bloque de notes: la primera línea es la
+ * ruta del fichero host que hay que editar —sin espacios y con barra—, va
+ * seguida de una línea en blanco, y el grupo entero cabe en 18 líneas: lo que
+ * no cabe vive en docs/, no en la terminal.
  */
 final class IntegrationNotesTest extends TestCase
 {
@@ -79,6 +84,45 @@ final class IntegrationNotesTest extends TestCase
         $texto = self::notes($framework) . "\n" . self::templates($framework);
 
         self::assertStringContainsString("endpoint' => ", $texto, $framework);
+    }
+
+    /**
+     * La primera línea de cada bloque es SIEMPRE la ruta del fichero host que
+     * hay que editar: sin espacios, con barra y sin puntuación final, para que
+     * el renderer pueda pintarla en acento y el ojo la encuentre sin leer.
+     */
+    #[DataProvider('frameworkProvider')]
+    public function testEveryNoteGroupStartsWithTheHostFilePathToEdit(string $framework): void
+    {
+        foreach (Integration::PER_FRAMEWORK[$framework] as $artefacto) {
+            $primera = $artefacto['notes'][0] ?? '';
+
+            self::assertMatchesRegularExpression(
+                '#^[A-Za-z0-9_./-]+/[A-Za-z0-9_.-]+$#',
+                $primera,
+                $framework . ': la primera línea de ' . $artefacto['path'] . ' debe ser una ruta',
+            );
+            self::assertSame('', $artefacto['notes'][1] ?? '?', $framework . ': tras la ruta va una línea en blanco');
+        }
+    }
+
+    /**
+     * Presupuesto de las notas: lo que no cabe aquí vive en docs/, no en la
+     * terminal. El grupo más largo hoy mide 12; 18 deja holgura sin permitir
+     * que vuelvan los párrafos que este rediseño recortó.
+     */
+    #[DataProvider('frameworkProvider')]
+    public function testNoteGroupsStayShortEnoughToReadOnATerminal(string $framework): void
+    {
+        $presupuesto = 18;
+
+        foreach (Integration::PER_FRAMEWORK[$framework] as $artefacto) {
+            self::assertLessThanOrEqual(
+                $presupuesto,
+                count($artefacto['notes']),
+                $framework . ': ' . $artefacto['path'] . ' se pasa del presupuesto de notas',
+            );
+        }
     }
 
     private static function notes(string $framework): string

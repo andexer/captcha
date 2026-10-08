@@ -120,31 +120,20 @@ final class Registry
     }
 
     private const INSTALL_DESCRIPTION = <<<TXT
-        Genera el fichero de configuración de arranque, con todas las
-        opciones comentadas y los valores por defecto activos, para que
-        quien integra solo tenga que descomentar lo que necesite.
-
-        Además escribe el pegamento propio del framework (middleware,
-        filter, provider, listener o el controlador de la ruta AJAX) y, al
-        terminar, imprime los pasos de registro que no puede automatizar
-        sin editar ficheros que ya son de la aplicación.
-
-        El framework se puede dar como argumento (forma breve) o con
-        --framework (forma explícita). Si se dan los dos y no coinciden,
-        es un error: es más probable que alguien haya tecleado mal que
-        que haya querido dos cosas a la vez.
+        Crea el config de arranque —todas las opciones comentadas, con los
+        valores por defecto activos— y el pegamento propio del framework:
+        middleware, filter, provider, listener o controlador de la ruta.
+        Al terminar imprime, con la ruta por delante, los pasos de
+        registro que no puede automatizar sin editar ficheros que ya son
+        de la aplicación.
 
         Los destinos cuelgan de la raíz del proyecto —el directorio con
-        composer.json, buscado hacia arriba desde donde se lanza el
-        comando—, no del directorio de trabajo tal cual, para que
-        lanzarlo desde un subdirectorio no deje el config descuadrado.
+        composer.json, buscado hacia arriba desde donde se lanza—, no del
+        directorio de trabajo.
 
-        Con --dry-run enseña qué ficheros crearía y dónde, y no escribe
-        ninguno: es la forma de revisar la instalación antes de tocar
-        el proyecto.
-
-        Nunca sobrescribe un fichero que ya existe. Para regenerarlo,
-        borra el fichero antes.
+        Con --dry-run enseña qué crearía sin escribir nada. Nunca
+        sobrescribe un fichero que ya existe: para regenerarlo, bórralo
+        antes.
         TXT;
 
     private static function install(): Command

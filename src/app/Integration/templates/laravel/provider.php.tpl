@@ -10,13 +10,9 @@ use Illuminate\Support\ServiceProvider;
 /**
  * Conecta el config de Laravel con la capa estática del paquete.
  *
- * Laravel lee config/captcha.php a través de config(), de modo que el array que
- * devuelve install --framework=laravel no lo lee nadie por su cuenta: este
- * provider es el que se lo pasa a Captcha::configure().
- *
- * La llamada es idempotente y va en boot() porque el orden de arranque entre el
- * provider y los controladores no está garantizado; ponerlo en register() dejaría
- * el widget sin config si algún middleware corre antes.
+ * Laravel lee config/captcha.php con config(), pero nadie se lo pasa al SDK:
+ * este provider se lo entrega a Captcha::configure(). La llamada es
+ * idempotente y va en boot() para que el widget no arranque sin config.
  *
  * Registra la clase en bootstrap/providers.php (Laravel 11 y superior) o en
  * config/app.php, clave providers (Laravel 9 y 10).

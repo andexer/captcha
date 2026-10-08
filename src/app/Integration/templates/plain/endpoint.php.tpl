@@ -5,12 +5,10 @@ declare(strict_types=1);
 /*
  * Endpoint AJAX del captcha para una aplicación PHP sin framework.
  *
- * El widget recarga el reto con un GET a este fichero. Solo se expone la acción
- * "generate": el código se verifica en el POST que trata el formulario, y el
- * paquete nunca devuelve el código en claro.
- *
- * La resolución del autoload va en cascada porque este fichero se copia dentro
- * de la aplicación anfitriona, donde el paquete vive en vendor/andexer/captcha/.
+ * El widget recarga el reto con un GET a este fichero; solo expone la acción
+ * "generate", porque el código se verifica en el POST del formulario y nunca
+ * sale en claro. El autoload va en cascada porque el fichero se copia dentro
+ * de la aplicación anfitriona, donde el paquete vive en vendor/.
  */
 
 $autoload = null;

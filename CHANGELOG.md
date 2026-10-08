@@ -5,6 +5,37 @@ Las versiones se cortan con etiquetas de git (`v1.0.0-rc.1`), y
 `bin/captcha --version` lee la etiqueta; sin ella imprime la versión que
 declare el host que instaló el paquete.
 
+## [1.0.0] - 2026-10-08
+
+Primera versión estable. Sin cambios de API respecto a `1.0.0-rc.6`.
+
+### Añadido
+
+- **Segunda grafía para las variables por opción.** Las claves multipalabra
+  aceptan también la forma guionada habitual en un `.env` 12-factor:
+  `CAPTCHA_RATE_LIMIT_BY_IP` equivale a `CAPTCHA_RATELIMITBYIP` (igual
+  `CAPTCHA_TRUSTED_PROXIES`, `CAPTCHA_FONT_SIZE`...). Si existen las dos,
+  manda la pegada; un nombre que no sea ninguno de los dos sigue ignorándose
+  en silencio. Así escribir el nombre natural no apaga en silencio un dial de
+  seguridad.
+
+### Cambiado
+
+- **La salida de `captcha install` va al grano.** Cada bloque de pasos a mano
+  empieza por la ruta del fichero que hay que editar —resaltada en la
+  terminal— seguida de un ejemplo corto; el porqué vive en la documentación.
+  Las 19 plantillas de integración y la ayuda de `install` siguen la misma
+  receta: lo crítico (POST, `requireSubmission`, dónde registrarse) y nada
+  más.
+
+### Corregido
+
+- **`captcha doctor` no se muere con una env inválida.** Una `CAPTCHA_*` con
+  un valor que el lector no admite (p. ej. `CAPTCHA_NOISE=maybe`) imprimía
+  solo el mensaje de la excepción y sin informe; ahora el reporte se
+  renderiza entero y el hallazgo baja a `Error` nombrando la variable, con
+  salida `1` como cualquier otro error de arranque.
+
 ## [1.0.0-rc.6] - 2026-10-08
 
 Sexta candidata de publicación. Configuración por variables de entorno

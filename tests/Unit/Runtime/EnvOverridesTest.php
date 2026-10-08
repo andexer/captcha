@@ -144,6 +144,34 @@ final class EnvOverridesTest extends TestCase
         Captcha::instance();
     }
 
+    /**
+     * La forma guionada existe para que un despliegue escriba el nombre que
+     * cabría esperar de una env 12-factor (CAPTCHA_RATE_LIMIT_BY_IP) sin que
+     * el silencio del sufijo desconocido apague un dial de seguridad.
+     */
+    public function testSnakeCaseAliasOverridesAMultiwordDial(): void
+    {
+        self::env('CAPTCHA_RATE_LIMIT_BY_IP', '0');
+
+        self::assertFalse(Captcha::instance()->config()->rateLimitByIp);
+        self::assertSame(['rateLimitByIp'], StaticLayer::envOptionNames());
+    }
+
+    public function testCanonicalNameWinsWhenBothSpellingsAreSet(): void
+    {
+        self::env('CAPTCHA_RATELIMITBYIP', '1');
+        self::env('CAPTCHA_RATE_LIMIT_BY_IP', '0');
+
+        self::assertTrue(Captcha::instance()->config()->rateLimitByIp);
+    }
+
+    public function testSnakeCaseAliasAlsoCarriesJsonArrays(): void
+    {
+        self::env('CAPTCHA_TRUSTED_PROXIES', '["203.0.113.7"]');
+
+        self::assertSame(['203.0.113.7'], Captcha::instance()->config()->trustedProxies);
+    }
+
     public function testHasEnvOverridesAndEnvOptionNamesReportTheSameSet(): void
     {
         self::assertFalse(StaticLayer::hasEnvOverrides());
@@ -215,12 +243,14 @@ final class EnvOverridesTest extends TestCase
 
     /**
      * Deja el entorno sin ninguna CAPTCHA_* ni CAPTCHA_CONFIG, para que ningún
-     * test herede una variable que fijó otro.
+     * test herede una variable que fijó otro. Cada opción se limpia en sus dos
+     * grafías, la pegada y la guionada.
      */
     private static function limpiarEnv(): void
     {
         foreach (Config::KEYS as $key) {
             putenv('CAPTCHA_' . strtoupper($key));
+            putenv('CAPTCHA_' . strtoupper(preg_replace('/(?<!^)[A-Z]/', '_$0', $key) ?? $key));
         }
 
         putenv('CAPTCHA_CONFIG');

@@ -399,9 +399,11 @@ function captcha_vuelca(Artifact $artefacto): void
 *  Los pasos de registro que el instalador no puede automatizar, agrupados por
 *  artefacto y separados entre sí para que no se lean como un solo bloque.
 *
-*  El grupo se omite entero cuando ningún artefacto trajo notas: en PHP plano la
-*  integración son dos ficheros que se usan sin tocar nada más, y un bloque
-*  "pendientes" vacío solo confundiría.
+*  La primera línea de cada grupo es la ruta del fichero que hay que tocar:
+*  se resalta en acento y sin sangrar, para que la vista salte directamente
+*  al destino antes de leer el snippet. El grupo se omite entero cuando ningún
+*  artefacto trajo notas: en PHP plano la integración son dos ficheros que se
+*  usan sin tocar nada más, y un bloque "pendientes" vacío solo confundiría.
 */
 function captcha_notas(array $grupos, Style $estilo): array
 {
@@ -412,7 +414,16 @@ function captcha_notas(array $grupos, Style $estilo): array
     $salida = [$estilo->accent('Pendientes de registrar a mano:'), ''];
 
     foreach ($grupos as $grupo) {
+        $primero = true;
+
         foreach ($grupo as $nota) {
+            if ($primero) {
+                $salida[] = $estilo->accent($nota);
+                $primero = false;
+
+                continue;
+            }
+
             $salida[] = $nota === '' ? '' : '  ' . $nota;
         }
 

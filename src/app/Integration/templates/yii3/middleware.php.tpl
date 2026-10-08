@@ -16,24 +16,18 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Corta la petición cuando el captcha no pasa, como middleware PSR-15.
  *
- * Solo actúa sobre el POST. En GET el reto todavía no existe —se genera al
- * renderizar el formulario— así que verificar en la primera visita dejaría al
- * usuario con el formulario vacío y sin reto que resolver.
+ * Solo actúa sobre el POST: en GET el reto todavía no existe y verificar ahí
+ * dejaría al usuario con un formulario vacío y sin reto que resolver.
  *
  * requireSubmission: true es lo que hace seguro el middleware: con false, un
- * POST que omite el campo oculto captcha_id se considera válido, de modo que
- * borrar ese input bastaría para saltarse la comprobación.
+ * POST que omite el campo oculto captcha_id se considera válido.
  *
- * La denegación es una respuesta propia con el estado que sugiere el guard y
- * el mensaje en español en el cuerpo, construida con los servicios PSR-17 que
- * el contenedor ya tiene ligados. Si tu aplicación prefiere reponer el
- * formulario en vez de devolver JSON, sustitúyela por un redirect 303 al
- * referrer con un flash de sesión.
+ * La denegación es una respuesta propia con el estado y el mensaje del guard;
+ * si tu aplicación prefiere reponer el formulario, sustitúyela por un
+ * redirect 303 al referrer con un flash de sesión.
  *
- * Regístralo en config/web/di/application.php, dentro de withMiddlewares() y
- * justo antes de Router::class:
- *
- *     App\Web\Captcha\GuardMiddleware::class,
+ * Regístralo en config/web/di/application.php, dentro de withMiddlewares(),
+ * justo antes de Router::class.
  */
 final class GuardMiddleware implements MiddlewareInterface
 {

@@ -11,20 +11,14 @@ use Captcha\Http\Endpoint;
 /**
  * Ruta GET que alimenta la recarga AJAX del widget.
  *
- * El endpoint del paquete ya devuelve 200 con el reto, 400 si la acción no
- * existe y 429 al superar el techo anti-flood; el controlador solo vuelca esa
- * tupla. Lo único que decide es qué hacer con un action que no sea cadena:
- * ?action[]=x llega como array desde CakePHP y pasarlo tal cual a dispatch()
- * sería un error de tipos en lugar de un 400.
- *
- * No lleva CaptchaMiddleware: esta ruta solo genera retos, no consume ninguno.
- * El reto se consume en el POST que lo recibe, que es donde se aplica el
- * middleware.
- *
- * Mapea la ruta en routes.php, dentro de $routes->scope(). El widget no apunta
- * aquí por defecto, así que decláralo al dibujarlo:
+ * Mapea la ruta en config/routes.php ($routes->scope()); el widget no apunta
+ * aquí por defecto:
  *
  *     Captcha::widget(['endpoint' => '/captcha/generate']);
+ *
+ * No lleva CaptchaMiddleware: esta ruta solo genera retos y el middleware se
+ * aplica al POST que los recibe. Un action no cadena (?action[]=x) se manda
+ * vacío para que el endpoint responda 400 en vez de un error de tipos.
  */
 final class CaptchaController extends AppController
 {

@@ -3,17 +3,29 @@
 > Forma parte de la documentación de [captcha](../README.md). Volver al [inicio](../README.md).
 
 ```
-vendor/bin/captcha <comando> [opciones]
+captcha — consola del paquete
 
-  install [framework] [-f|--framework=plain|codeigniter|laravel|symfony|cakephp|yii|yii3|janssen]
-                      [-n|--dry-run]
-                      Crea el config del framework y el pegamento de integración
-                      (middleware/filter/provider/controlador); nunca sobrescribe
-                      un fichero. Default: plain (app/Config/captcha.php).
-  doctor [-s|--strict]  Comprueba PHP/GD, config descubierto y efectivo, postura de
-                      seguridad (honeypot, rate limits, proxies, host) y endpoint.
-  list                 Lista los comandos disponibles.
-  help [comando]       Muestra la ayuda general, o la de un comando.
+Uso:
+  vendor/bin/captcha <comando> [opciones]
+
+Comandos:
+  install  Crea el config y el pegamento de integración del framework.  [i, init]
+  doctor   Comprueba el entorno y la configuración efectiva.  [d]
+  list     Lista los comandos disponibles.  [ls]
+  help     Muestra la ayuda de un comando.  [?]
+
+Opciones globales:
+  -h, --help      Muestra la ayuda del comando.
+  -V, --version   Muestra la versión del paquete.
+  -q, --quiet     Reduce la salida a los errores.
+       --no-ansi  Desactiva el color en la salida.
+
+Ejemplos:
+  vendor/bin/captcha install laravel
+  vendor/bin/captcha doctor --strict
+  vendor/bin/captcha help install
+
+Más ayuda: vendor/bin/captcha help <comando>
 ```
 
 Alias: `i`/`init` = `install`, `d` = `doctor`, `ls` = `list`, `?` = `help`. Opciones globales en todos los comandos: `-h, --help`, `-V, --version`, `-q, --quiet`, `--no-ansi`. El color se decide sobre el stream donde se escribe, así que `captcha doctor > informe.txt` guarda texto limpio sin códigos de escape.
@@ -28,7 +40,7 @@ Alias: `i`/`init` = `install`, `d` = `doctor`, `ls` = `list`, `?` = `help`. Opci
 
 **Antes de escribir, mira**: `--dry-run` (o `-n`) enseña el plan completo —cada ruta y los pasos de registro pendientes— y no deja ni un fichero. Es la forma de revisar la instalación en una app real antes de tocarla.
 
-**Códigos de salida de `doctor`**: `0` si no hay errores; `1` si falta `ext-gd` o la fachada no arranca; con `--strict`, también `1` si hay avisos. Sin `--strict`, un aviso no tumba el proceso: casi siempre es una decisión deliberada (honeypot apagado, ejecución en CLI, rate limit a cero) y convertirlo en puerta cerrada lo haría inútil en un despliegue. El resumen final cuenta los hallazgos por gravedad.
+**Códigos de salida de `doctor`**: `0` si no hay errores; `1` si falta `ext-gd`, el config o una `CAPTCHA_*` es inválido, o la fachada no arranca; con `--strict`, también `1` si hay avisos. Sin `--strict`, un aviso no tumba el proceso: casi siempre es una decisión deliberada (honeypot apagado, ejecución en CLI, rate limit a cero) y convertirlo en puerta cerrada lo haría inútil en un despliegue. El resumen final cuenta los hallazgos por gravedad.
 
 Atajo dentro del propio repositorio del paquete:
 

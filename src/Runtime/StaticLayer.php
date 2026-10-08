@@ -50,8 +50,10 @@ final class StaticLayer
     /**
      * Prefijo de las variables de entorno que sobreescriben opciones de
      * Config por opción (CAPTCHA_LENGTH, CAPTCHA_NOISE...), nombradas como la
-     * clave en mayúsculas. Conviven con CAPTCHA_CONFIG: la una apunta al
-     * fichero, las otras matizan opciones encima de lo que se descubra.
+     * clave en mayúsculas —y también en su variante guionada,
+     * CAPTCHA_RATE_LIMIT_BY_IP para rateLimitByIp—. Conviven con
+     * CAPTCHA_CONFIG: la una apunta al fichero, las otras matizan opciones
+     * encima de lo que se descubra.
      */
     private const ENV_PREFIX = 'CAPTCHA_';
 
@@ -188,6 +190,8 @@ final class StaticLayer
      * Las opciones fijadas por env, ya normalizadas para
      * Config::fromArray(). Un valor vacío se ignora —igual que el
      * CAPTCHA_CONFIG vacío del descubrimiento— y un valor inválido lanza.
+     * Cada clave se consulta en su forma canónica y, si no está declarada,
+     * en la guionada (ver envRaw()).
      *
      * @throws InvalidConfigException
      *
@@ -198,7 +202,7 @@ final class StaticLayer
         $overrides = [];
 
         foreach (Config::KEYS as $key) {
-            $raw = getenv(self::ENV_PREFIX . strtoupper($key));
+            $raw = self::envRaw($key);
 
             if (is_string($raw) && $raw !== '') {
                 $overrides[$key] = self::envValue($key, $raw);
@@ -206,6 +210,36 @@ final class StaticLayer
         }
 
         return $overrides;
+    }
+
+    /**
+     * La variable cruda de una opción: primero la forma canónica
+     * (CAPTCHA_RATELIMITBYIP), después la guionada (CAPTCHA_RATE_LIMIT_BY_IP).
+     * Si existen las dos, gana la canónica aunque esté vacía: la precedencia
+     * no depende del orden de consulta y un vacío sigue significando
+     * "ignorar la opción". false de getenv() significa "no declarada".
+     */
+    private static function envRaw(string $key): string|false
+    {
+        $canonica = self::ENV_PREFIX . strtoupper($key);
+        $valor = getenv($canonica);
+
+        if (is_string($valor)) {
+            return $valor;
+        }
+
+        return getenv(self::ENV_PREFIX . self::enSnake($key));
+    }
+
+    /**
+     * La clave en mayúsculas con guiones bajos (rateLimitByIp ⇒
+     * RATE_LIMIT_BY_IP). El guionado se calcula sobre la grafía camelCase
+     * original: strtoupper() aplana las letras y perdería los límites de
+     * palabra.
+     */
+    private static function enSnake(string $key): string
+    {
+        return strtoupper(preg_replace('/(?<!^)[A-Z]/', '_$0', $key) ?? $key);
     }
 
     /**

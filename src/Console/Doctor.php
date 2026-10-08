@@ -8,6 +8,7 @@ use Captcha\Captcha;
 use Captcha\Config\Config;
 use Captcha\Config\ConfigFile;
 use Captcha\Contract\StorageInterface;
+use Captcha\Exception\InvalidConfigException;
 use Captcha\Runtime\Host;
 use Captcha\Runtime\StaticLayer;
 use Captcha\Storage\ArrayStorage;
@@ -154,23 +155,45 @@ final class Doctor
     /**
      * Las variables CAPTCHA_* que están modificando el config efectivo. No son
      * un problema (es una vía de configuración sancionada), pero el reporte
-     * las nombra: el config efectivo ya no es solo el del fichero.
+     * las nombra: el config efectivo ya no es solo el del fichero. Una env con
+     * un valor inválido no puede nombrarse y, en vez de tumbar el informe
+     * entero, baja a Error con el mensaje del lector.
      *
      * @return list<Finding>
      */
     private function envFindings(): array
     {
-        $names = StaticLayer::envOptionNames();
+        try {
+            $names = StaticLayer::envOptionNames();
+        } catch (InvalidConfigException $excepcion) {
+            return [$this->envInvalida($excepcion)];
+        }
 
         if ($names === []) {
             return [];
         }
 
-        return [$this->finding(Severity::Notice, sprintf(
+        return [$this->envNotice($names)];
+    }
+
+    private function envInvalida(InvalidConfigException $excepcion): Finding
+    {
+        return $this->finding(
+            Severity::Error,
+            'Env por opción inválida: ' . $excepcion->getMessage(),
+        );
+    }
+
+    /**
+     * @param list<string> $names
+     */
+    private function envNotice(array $names): Finding
+    {
+        return $this->finding(Severity::Notice, sprintf(
             'Env por opción: %d variable(s) CAPTCHA_* (%s) sobre la configuración efectiva',
             count($names),
             implode(', ', $names),
-        ))];
+        ));
     }
 
     /**

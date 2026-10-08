@@ -15,19 +15,12 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Corta la petición cuando el captcha no pasa, como middleware PSR-15.
  *
- * Solo actúa sobre el POST. En GET el reto todavía no existe —se genera al
- * renderizar el formulario— así que un middleware que verificara en la primera
- * visita dejaría al usuario con un formulario vacío y un error sin retos que
- * resolver.
+ * Solo actúa sobre el POST: en GET el reto todavía no existe —se genera al
+ * renderizar el formulario— y verificar ahí dejaría al usuario con un
+ * formulario vacío y un error sin retos que resolver.
  *
  * requireSubmission: true es lo que hace seguro el middleware: con false, un
- * POST que omite el campo oculto captcha_id se considera válido, de modo que
- * borrar ese input bastaría para saltarse la comprobación.
- *
- * La denegación se construye con los métodos inmutables withStatus(), withType()
- * y withStringBody() en vez de pasar un array al constructor: así el código de
- * estado, el tipo y el cuerpo van por rutas que CakePHP interpreta con certeza, y
- * un cambio no se pierde en una clave de opción que el constructor ignore.
+ * POST que omite el campo oculto captcha_id se considera válido.
  *
  * Regístralo en src/Application.php, dentro de middleware().
  */

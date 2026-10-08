@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Captcha\Tests\Integration\Console;
 
+use Captcha\Console\Integration;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -383,6 +384,16 @@ final class BinaryTest extends TestCase
 
         self::assertStringContainsString('Integración creada', $resultado['output'], $framework);
         self::assertStringContainsString('Pendientes de registrar a mano', $resultado['output'], $framework);
+
+        foreach (Integration::PER_FRAMEWORK[$framework] as $artefacto) {
+            $ruta = $artefacto['notes'][0];
+
+            self::assertStringContainsString(
+                $ruta,
+                $resultado['output'],
+                $framework . ': las notas no enseñan la ruta a editar ' . $ruta,
+            );
+        }
     }
 
     #[DataProvider('integrationProvider')]

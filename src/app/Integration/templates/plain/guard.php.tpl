@@ -9,21 +9,15 @@ use Captcha\Security\GuardDecision;
 /**
  * Verificación del captcha en una aplicación PHP sin framework.
  *
- * Aquí no hay pipeline de middleware donde colgar la decisión, así que el
- * paquete reduce su integración a dos llamadas estáticas: decide() devuelve el
- * veredicto completo para quien quiera imponer su propia política de respuesta,
- * y enforce() lo traduce a la tupla [status, payload] que espera un controlador
- * que solo pueda emitir JSON.
+ * Sin pipeline de middleware, la integración son dos llamadas estáticas:
+ * decide() devuelve el veredicto completo y enforce() la tupla [status,
+ * payload] lista para responder.
  *
- * Los dos métodos pasan requireSubmission: true porque se llaman desde el
- * manejador del POST, donde el campo oculto captcha_id tiene que estar. Sin ese
- * argumento el guard deja pasar una petición que no trae reto, y una app que
- * solo se olvide de llamar a enforce() quedaría sin protección en silencio.
+ * Ambas pasan requireSubmission: true porque se llaman desde el manejador del
+ * POST: sin ese argumento, el guard deja pasar una petición que no trae reto.
  *
- * El widget dibuja el reto con Captcha::widget() y el endpoint que genera los
- * siguientes vive en public/captcha.php; indícalo con
- * Captcha::widget(['endpoint' => '/captcha.php']) para que la recarga AJAX
- * tenga destino.
+ * El endpoint de recarga vive en public/captcha.php; indícalo al dibujar con
+ * Captcha::widget(['endpoint' => '/captcha.php']).
  */
 final class CaptchaGuard
 {
