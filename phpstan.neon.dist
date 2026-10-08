@@ -63,6 +63,15 @@ parameters:
         -
             message: "#Strict comparison using !== between 'Lax'.* and '' will always evaluate to true#"
             path: src/Http/SessionCookie.php
+        # El mismo hecho un nivel más arriba: a partir de PHPStan 2.3.0 el
+        # diagnóstico sube desde la comparación interna hasta el || completo
+        # (identificador booleanOr.alwaysTrue) y deja de emitir los otros dos.
+        # Son tres formas de ver la misma comprobación defensiva según la
+        # versión de la herramienta; sin esta tercera, la puerta depende de
+        # qué versión resuelva composer update, y el lock no la fija.
+        -
+            message: '#Result of \|\| is always true#'
+            path: src/Http/SessionCookie.php
 
         # imagecolorallocate() devuelve int|false, pero solo cuando no queda
         # memoria para una paleta paletizada. El renderizador trabaja siempre
