@@ -56,6 +56,37 @@ estática con el estado actual del entorno; el comando `doctor` lo reporta
 junto con cada candidatura y su decisión (`cargado`, `ignorado` por firma
 ausente, `válido` sombreado por una anterior).
 
+### Variables CAPTCHA_* por opción (12-factor)
+
+Además de `CAPTCHA_CONFIG` (que apunta al fichero), **cada opción** de
+`Config::KEYS` puede fijarse por su homóloga en mayúsculas con el prefijo
+`CAPTCHA_`: `CAPTCHA_LENGTH`, `CAPTCHA_TTL`, `CAPTCHA_NOISE`, `CAPTCHA_PRESET`...
+Así un despliegue cambia un dial sin tocar el fichero, y `doctor` lo nombra en
+su reporte (`Env por opción: N variable(s) CAPTCHA_* (...)`).
+
+**Precedencia**: `Captcha::configure([...])` > variables `CAPTCHA_*` > fichero
+descubierto (env, anclas, cwd) > defaults. `CAPTCHA_CONFIG` sigue siendo solo la
+puntera al fichero, nunca una opción.
+
+**Formato** (los valores llegan como cadenas):
+
+| Familia | Formato | Ejemplo |
+| --- | --- | --- |
+| Enteros (`length`, `ttl`, `fontSize`...) | cadena numérica | `CAPTCHA_LENGTH=5` |
+| Booleanos (`noise`, `distortion`, `injectAssets`, `honeypot`, `rateLimitByIp`) | `1/0`, `true/false`, `yes/no`, `on/off` | `CAPTCHA_NOISE=0` |
+| Arrays (`operations`, `between`, `trustedProxies`) | JSON | `CAPTCHA_OPERATIONS='["+","-"]'`, `CAPTCHA_BETWEEN='[2, 20]'` |
+| `preset` | nombre del paquete | `CAPTCHA_PRESET=login` |
+
+Un valor **vacío se ignora** (igual que el `CAPTCHA_CONFIG` vacío) y una
+sufijo desconocido (`CAPTCHA_NOPE=1`) no hace nada. Un valor **inválido no se
+salta en silencio**: el arranque lanza `InvalidConfigException` nombrando la
+opción — igual que un fichero con un tipo erróneo —, porque una errata nunca
+apaga un dial de seguridad por sorpresa.
+
+```bash
+CAPTCHA_PRESET=login CAPTCHA_NOISE=0 php -S localhost:8000
+```
+
 > **Consejo:** usa la misma vía para formulario y endpoint. El endpoint de recarga debe ir sobre `Captcha::instance()`, de modo que comparte *por construcción* la misma configuración y el mismo backend de retos que el formulario — nunca hay dos configs que mantener sincronizadas.
 
 > **Out-of-the-box en frameworks:** cuando el paquete detecta un framework que
@@ -73,6 +104,37 @@ ausente, `válido` sombreado por una anterior).
 La capa estática asume que PHP reinicia los estáticos en cada petición (FPM, CLI). En un **runner persistente** —FrankenPHP en modo worker, RoadRunner, Swoole— el proceso vive entre peticiones, así que el singleton y la config también: llama a `Captcha::reset()` en cada petición (y `Captcha::configure([...])` de nuevo si usas opciones manuales) para que ninguna respuesta herede el estado de la anterior.
 
 Con `storage => 'auto'` la elección de backend mira qué kernels de framework están **ya cargados** en el momento del primer `Captcha::instance()`. Si esa primera llamada llega antes de que el host cargue su framework, el paquete se ve como PHP plano y elige sesión; corrígelo con `Captcha::reset()` una vez arrancado el framework, o no llames a captcha hasta después de su bootstrap.
+
+El patrón en la práctica (receta completa en `src/examples/06-runners-persistentes.php`):
+
+**Laravel Octane** — una limpieza por petición:
+
+```php
+use Captcha\Captcha;
+use Laravel\Octane\Events\RequestReceived;
+
+app('events')->listen(RequestReceived::class, static function (): void {
+    Captcha::reset();
+});
+```
+
+**RoadRunner / Swoole** — el `finally` del bucle garantiza que ninguna petición herede el singleton de la anterior:
+
+```php
+use Captcha\Captcha;
+
+while ($request = $worker->waitRequest()) {
+    try {
+        $worker->send($kernel->handle($request));
+    } finally {
+        Captcha::reset();
+    }
+}
+```
+
+**FrankenPHP en modo worker** (o cualquier bootstrap global): `Captcha::reset()` al cierre de cada request, **después** de que el framework haya cargado sus kernels, de modo que el `storage => 'auto'` de la siguiente petición los vea.
+
+`reset()` suelta la instancia pero **no** el config manual (`configure()` sobrevive a propósito, porque lo fija el bootstrap). Si tu arranque es por petición, repite `Captcha::configure([...])` después del `reset()`; para devolver el mandado al descubrimiento, `Captcha::configure([])`.
 
 ## Opción A — copiar la plantilla
 

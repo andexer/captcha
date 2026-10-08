@@ -134,19 +134,43 @@ final class Doctor
     }
 
     /**
-     * Qué config ha encontrado el descubrimiento, si alguno.
+     * Qué config ha encontrado el descubrimiento, si alguno, y qué variables
+     * CAPTCHA_* lo están matizando.
      *
      * @return list<Finding>
      */
     private function configFindings(): array
     {
         $path = Captcha::configPath();
-
-        return match (true) {
+        $findings = match (true) {
             $path !== null => [$this->finding(Severity::Ok, sprintf('Config descubierto: %s', $path))],
             StaticLayer::hasManualConfig() => [$this->finding(Severity::Ok, self::MANUAL_CONFIG_TEXT)],
             default => [$this->finding(Severity::Notice, self::NO_CONFIG_TEXT)],
         };
+
+        return [...$findings, ...$this->envFindings()];
+    }
+
+    /**
+     * Las variables CAPTCHA_* que están modificando el config efectivo. No son
+     * un problema (es una vía de configuración sancionada), pero el reporte
+     * las nombra: el config efectivo ya no es solo el del fichero.
+     *
+     * @return list<Finding>
+     */
+    private function envFindings(): array
+    {
+        $names = StaticLayer::envOptionNames();
+
+        if ($names === []) {
+            return [];
+        }
+
+        return [$this->finding(Severity::Notice, sprintf(
+            'Env por opción: %d variable(s) CAPTCHA_* (%s) sobre la configuración efectiva',
+            count($names),
+            implode(', ', $names),
+        ))];
     }
 
     /**

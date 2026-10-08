@@ -8,7 +8,7 @@ El paquete es agnóstico: cada framework solo aporta la **ruta del config** y su
 |---|---|---|---|
 | PHP plano / cualquier app | `plain` | `app/Config/captcha.php` | Descubrimiento automático (raíz de instalación o cwd). |
 | CodeIgniter 4 | `codeigniter` | `app/Config/captcha.php` | Descubrimiento automático desde `public/` (docroot). |
-| Laravel | `laravel` | `config/captcha.php` | Descubrimiento automático (`config/captcha.php` es ancla), o el provider que lo carga. |
+| Laravel | `laravel` | `config/captcha.php` | Auto-discovery de Composer (`extra.laravel.providers` → `Captcha\Laravel\CaptchaServiceProvider`), descubrimiento automático (`config/captcha.php` es ancla) o el provider que emite `install`. |
 | Symfony | `symfony` | `config/captcha.php` | Descubrimiento automático (`config/captcha.php` es ancla). Va en `config/` y **no** en `config/packages/`: el kernel importa `config/packages/*` como configuración de contenedor y un array plano de opciones escalares lo rompería en cuanto descomentes una. El camino manual (`Captcha::configure(...)`) no va en `config/services.php`: ese fichero solo se ejecuta al compilar el contenedor y no llega a los workers. |
 | CakePHP 4/5 | `cakephp` | `config/captcha.php` | Descubrimiento automático (array plano, como el resto); no necesitas tocar `Configure`. El pegamento es PSR-15, así que vale para las dos series. |
 | Yii 2 | `yii` | `config/captcha.php` | Descubrimiento automático (`config/captcha.php` es ancla), o el `require` + `Captcha::configure(...)` del bootstrap. |
@@ -16,6 +16,16 @@ El paquete es agnóstico: cada framework solo aporta la **ruta del config** y su
 | Janssen | `janssen` | `app/Config/captcha.php` | Descubrimiento automático (`app/Config/captcha.php` es ancla). Es la única plantilla que llega con los valores **activos** en vez de comentados. No está entre los kernels detectados, así que `storage: 'auto'` elige sesión — que es como vive este CMS. |
 
 Las rutas que emite `install` hoy (`app/Config/captcha.php`, `config/captcha.php`) son anclas del descubrimiento, así que el config que escribe se carga solo. `config/packages/captcha.php` sigue en la lista de candidatas solo por retrocompatibilidad con instalaciones de rc anteriores; nadie escribe ahí desde que Symfony pasó a `config/`. La lista de anclas vive en `Runtime\StaticLayer` y es la fuente de verdad: si un framework nuevo usara otra ruta, habría que añadirla ahí, no en el instalador. Las anclas de raíz exigen la firma `// captcha config v2`; las del cwd, no.
+
+**Auto-discovery en Laravel**: `composer.json` declara
+`Captcha\Laravel\CaptchaServiceProvider` en `extra.laravel.providers`, así que
+Laravel lo registra solo sin tocar `bootstrap/providers.php`. En `boot()` fija
+en la capa estática lo que el propio framework ya cargó de `config/captcha.php`
+(Laravel lee `config/` por su cuenta, sin que participe nuestro
+descubrimiento). Si no hay config, o el paquete está en `dont-discover`, no se
+fija nada y sigue mandando el descubrimiento de la capa estática, que
+encontraría el mismo fichero. El pegamento que emite `install laravel` queda
+como vía para las apps que desactivan el auto-discovery a mano.
 
 ## Series revisadas
 

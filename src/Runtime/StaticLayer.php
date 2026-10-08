@@ -15,8 +15,8 @@ use Captcha\Exception\InvalidConfigException;
  *
  * Posee el singleton, las opciones programáticas fijadas con configure() y
  * el descubrimiento del fichero de configuración (env → anclas de raíz
- * firmadas → cwd), de modo que la fachada conserva solo el flujo de
- * dominio. PHP reinicia el estado estático en cada petición, así que el
+ * firmadas → cwd), con las variables CAPTCHA_* matizando por opción lo que
+ * se descubra, de modo que la fachada conserva solo el flujo de dominio. PHP reinicia el estado estático en cada petición, así que el
  * singleton jamás se filtra entre peticiones; reset() lo descarta dentro de
  * una petición (tests de larga vida, reconfiguración).
  *
@@ -45,6 +45,41 @@ final class StaticLayer
         'config/captcha.php',
         'config/packages/captcha.php',
         'etc/captcha.php',
+    ];
+
+    /**
+     * Prefijo de las variables de entorno que sobreescriben opciones de
+     * Config por opción (CAPTCHA_LENGTH, CAPTCHA_NOISE...), nombradas como la
+     * clave en mayúsculas. Conviven con CAPTCHA_CONFIG: la una apunta al
+     * fichero, las otras matizan opciones encima de lo que se descubra.
+     */
+    private const ENV_PREFIX = 'CAPTCHA_';
+
+    /**
+     * Opciones booleanas que llegan por env como texto y deben convertirse
+     * antes de Config::fromArray(), que solo acepta bool reales.
+     *
+     * @var list<string>
+     */
+    private const ENV_BOOLEAN_KEYS = [
+        'noise',
+        'distortion',
+        'injectAssets',
+        'honeypot',
+        'rateLimitByIp',
+    ];
+
+    /**
+     * Opciones que por env viajan como JSON (arrays): operations, between y
+     * trustedProxies. El resto de claves pasa tal cual: Config ya sabe
+     * coaccionar cadenas numéricas y textos.
+     *
+     * @var list<string>
+     */
+    private const ENV_ARRAY_KEYS = [
+        'operations',
+        'between',
+        'trustedProxies',
     ];
 
     private static ?Captcha $instance = null;
@@ -130,6 +165,111 @@ final class StaticLayer
     }
 
     /**
+     * ¿Hay variables CAPTCHA_* aplicando opciones encima del descubrimiento?
+     * Doctor lo usa para nombrar lo que ya no viene solo del fichero.
+     */
+    public static function hasEnvOverrides(): bool
+    {
+        return self::envOverrides() !== [];
+    }
+
+    /**
+     * Los nombres de las opciones que las variables CAPTCHA_* fijan, en el
+     * orden de Config::KEYS (estable para el reporte).
+     *
+     * @return list<string>
+     */
+    public static function envOptionNames(): array
+    {
+        return array_keys(self::envOverrides());
+    }
+
+    /**
+     * Las opciones fijadas por env, ya normalizadas para
+     * Config::fromArray(). Un valor vacío se ignora —igual que el
+     * CAPTCHA_CONFIG vacío del descubrimiento— y un valor inválido lanza.
+     *
+     * @throws InvalidConfigException
+     *
+     * @return array<string, mixed>
+     */
+    private static function envOverrides(): array
+    {
+        $overrides = [];
+
+        foreach (Config::KEYS as $key) {
+            $raw = getenv(self::ENV_PREFIX . strtoupper($key));
+
+            if (is_string($raw) && $raw !== '') {
+                $overrides[$key] = self::envValue($key, $raw);
+            }
+        }
+
+        return $overrides;
+    }
+
+    /**
+     * Normaliza el valor crudo de una variable CAPTCHA_* a lo que el lector de
+     * Config espera: los booleanos llegan como texto y se convierten, los
+     * arrays viajan como JSON y el resto pasa tal cual — Config coacciona las
+     * cadenas numéricas y rechaza lo que no cuadre.
+     *
+     * @throws InvalidConfigException
+     *
+     * @return bool|array<mixed>|string|null
+     */
+    private static function envValue(string $key, string $raw): bool|array|string|null
+    {
+        return match (true) {
+            in_array($key, self::ENV_BOOLEAN_KEYS, true) => self::envBoolean($key, $raw),
+            in_array($key, self::ENV_ARRAY_KEYS, true) => self::envArray($key, $raw),
+            default => $raw,
+        };
+    }
+
+    /**
+     * Dial booleano por env: se aceptan las grafías habituales (1/0,
+     * true/false, yes/no, on/off) y cualquier otra se rechaza — un texto
+     * inesperado no debe desactivar un dial de seguridad en silencio.
+     *
+     * @throws InvalidConfigException
+     */
+    private static function envBoolean(string $key, string $raw): bool
+    {
+        return match (strtolower($raw)) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off' => false,
+            default => throw new InvalidConfigException(sprintf(
+                "'%s' por env debe ser un booleano (1/0, true/false, yes/no, on/off).",
+                $key,
+            )),
+        };
+    }
+
+    /**
+     * Opción de array por env: el valor es JSON. Un JSON inválido o un tipo
+     * que no es lista se rechazan; 'between' admite además el literal 'null'
+     * (sin rango), como en el fichero.
+     *
+     * @throws InvalidConfigException
+     *
+     * @return array<mixed>|null
+     */
+    private static function envArray(string $key, string $raw): ?array
+    {
+        $decoded = json_decode($raw, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new InvalidConfigException(sprintf("'%s' por env debe ser JSON válido.", $key));
+        }
+        if (is_array($decoded) || ($key === 'between' && $decoded === null)) {
+            return $decoded;
+        }
+
+        throw new InvalidConfigException(sprintf("'%s' por env debe ser un array.", $key));
+    }
+
+    /**
      * Transparencia del descubrimiento para Console\Doctor: cada candidata
      * en orden de sondeo con la decisión que el descubrimiento tomó o tomaría
      * — cargada (la ganadora), ignorada (un fichero anclado sin la firma del
@@ -173,8 +313,9 @@ final class StaticLayer
     /**
      * Descubre la configuración y construye el singleton.
      *
-     * Las opciones fijadas con configure() ganan; en caso contrario se
-     * descubre un fichero de configuración en orden estricto (gana el primer
+     * Las opciones fijadas con configure() ganan; entonces se descubre un
+     * fichero y las variables CAPTCHA_* matizan lo descubierto encima. El
+     * orden estricto de candidatas es el de discoverPath() (gana el primer
      * acierto), defaults cuando nada casa:
      * 1. getenv("CAPTCHA_CONFIG")
      * 2. {raíz del proyecto}/app/Config/captcha.php      (firmado — ver ConfigFile)
@@ -198,7 +339,23 @@ final class StaticLayer
      */
     private static function bootstrap(): Captcha
     {
-        return new Captcha(config: self::$manualOptions ?? Config::fromArray(self::discoverOptions()));
+        $options = self::$manualOptions ?? Config::fromArray(self::effectiveOptions());
+
+        return new Captcha(config: $options);
+    }
+
+    /**
+     * Las opciones de la capa estática: el fichero descubierto (o defaults)
+     * con las variables CAPTCHA_* encima. configure() se salta esto — sus
+     * opciones viven ya en self::$manualOptions.
+     *
+     * @throws InvalidConfigException
+     *
+     * @return array<string, mixed>
+     */
+    private static function effectiveOptions(): array
+    {
+        return array_replace(self::discoverOptions(), self::envOverrides());
     }
 
     /**

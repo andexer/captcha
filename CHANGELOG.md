@@ -5,6 +5,44 @@ Las versiones se cortan con etiquetas de git (`v1.0.0-rc.1`), y
 `bin/captcha --version` lee la etiqueta; sin ella imprime la versión que
 declare el host que instaló el paquete.
 
+## [1.0.0-rc.6] - 2026-10-08
+
+Sexta candidata de publicación. Configuración por variables de entorno
+(12-factor), auto-discovery de Composer para Laravel y una receta para
+runners persistentes; sin cambios de API.
+
+```bash
+composer require andexer/captcha:1.0.0-rc.6
+```
+
+### Añadido
+
+- **Una variable de entorno por opción (`CAPTCHA_*`).** Cualquier clave del
+  config puede fijarse con `CAPTCHA_<CLAVE>` en mayúsculas —p. ej.
+  `CAPTCHA_LENGTH=9`, `CAPTCHA_NOISE=true`,
+  `CAPTCHA_OPERATIONS='["add","subtract"]'`— encima del fichero descubierto
+  y por debajo de un `configure()` manual. Booleanos aceptan `1/true/yes/on`
+  y `0/false/no/off`, arrays se leen como JSON, un valor vacío o con sufijo
+  desconocido se ignora y uno inválido detiene el arranque con
+  `InvalidConfigException`. `doctor` nombra las variables presentes como
+  aviso (nunca tumba por ellas), y el orden sigue el de `Config::KEYS`.
+- **Auto-discovery de Composer para Laravel.** `extra.laravel.providers`
+  publica `Captcha\Laravel\CaptchaServiceProvider`, que configura el SDK con
+  `config('captcha')` cuando es un array: basta `composer require` y
+  `vendor/bin/captcha install laravel` para el config. El stub de prueba de
+  `Illuminate\Support\ServiceProvider` vive en `tests/stubs/` con extensión
+  `.tpl` (no lo resuelven ni las puertas por token ni PHPStan en modo
+  estricto) y se inyecta vía `scanFiles`.
+- **Receta de runners persistentes.**
+  `src/examples/06-runners-persistentes.php` explica por qué el singleton,
+  la sesión del host y el config manual sobreviven en FrankenPHP worker,
+  RoadRunner, Swoole u Octane, con el patrón `Captcha::reset()` por
+  petición. Los ejemplos de pegamento (Octane, RoadRunner) también están en
+  `docs/configuracion.md` (§ Runners persistentes y orden de arranque).
+- **Alias de rama** `dev-main` → `1.0.x-dev` en `composer.json`, para que
+  Composer resuelva la rama principal como prerelease coherente con las
+  etiquetas `v1.0.0-rc.*`.
+
 ## [1.0.0-rc.5] - 2026-10-08
 
 Quinta candidata de publicación. Silencia de `doctor` tapando una

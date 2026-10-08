@@ -14,10 +14,17 @@ parameters:
         # (excluidos en .gitattributes), pero se mantienen en el repo para
         # desarrollo. Varias exigen un framework anfitrión que no está instalado.
         - src/examples
-        # Scripts de E/S sin PSR-4, fuera del árbol de clases. Ya no se
+        # Scripts de I/O sin PSR-4, fuera del árbol de clases. Ya no se
         # distribuyen (excluidos en .gitattributes), pero se mantienen en el
         # repo para desarrollo.
         - src/public
+    # El proveedor de auto-discovery de Laravel extiende una clase que el
+    # paquete no instala (illuminate/* es dev de quien lo usa, nunca del
+    # paquete) y llama al helper config() del anfitrión. stubFiles solo
+    # sobrescribe símbolos existentes; discover-symbols exige scanFiles para
+    # aportar los que no son autoloadables, que es exactamente el caso.
+    scanFiles:
+        - tests/stubs/Illuminate/Support/ServiceProvider.php.tpl
     treatPhpDocTypesAsCertain: false
 
     # Un ignore que deja de encontrar su patrón es un ignore que ya no

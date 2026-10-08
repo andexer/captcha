@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Captcha\Tests\Unit\Console;
 
 use Captcha\Captcha;
+use Captcha\Config\Config;
 use Captcha\Config\ConfigFile;
 use Captcha\Console\Doctor;
 use Captcha\Console\DoctorReport;
@@ -57,6 +58,7 @@ final class DoctorTest extends TestCase
         Host::forceFrameworkSession(null);
         Host::forceWeb(null);
         putenv('CAPTCHA_CONFIG');
+        self::limpiarEnvPorOpcion();
     }
 
     protected function tearDown(): void
@@ -66,6 +68,7 @@ final class DoctorTest extends TestCase
         Host::forceFrameworkSession(null);
         Host::forceWeb(null);
         putenv('CAPTCHA_CONFIG');
+        self::limpiarEnvPorOpcion();
 
         if (is_string($this->cwd)) {
             chdir($this->cwd);
@@ -133,6 +136,23 @@ final class DoctorTest extends TestCase
         self::assertStringContainsString('opciones fijadas con Captcha::configure()', $text);
         self::assertStringContainsString('(no usado: gana Captcha::configure())', $text);
         self::assertStringNotContainsString('Config: ninguno descubierto', $text);
+    }
+
+    /**
+     * Las variables CAPTCHA_* matizan por opción lo que se descubre, así que
+     * el reporte las nombra: sin esa fila, el config efectivo se lee como si
+     * saliera solo del fichero.
+     */
+    public function testEnvironmentOverridesAreNamedByTheReport(): void
+    {
+        putenv('CAPTCHA_LENGTH=6');
+
+        $report = (new Doctor())->report();
+        $text = self::flat($report);
+
+        self::assertStringContainsString('Env por opción: 1 variable(s) CAPTCHA_* (length)', $text);
+        self::assertSame(Severity::Notice, $this->severityOf($report, 'Env por opción:'), 'es informativo, no un aviso');
+        self::assertStringContainsString('6 dígitos', $text, 'el efectivo sí refleja la env');
     }
 
     public function testTheDiscoveredConfigIsNamedAndItsPostureIsReported(): void
@@ -334,6 +354,31 @@ final class DoctorTest extends TestCase
         $this->temporales[] = $path;
 
         return $path;
+    }
+
+    /**
+     * La gravedad del primer hallazgo que contenga el texto, o null.
+     */
+    private function severityOf(DoctorReport $report, string $needle): ?Severity
+    {
+        foreach ($report->findings as $finding) {
+            if (str_contains($finding->text, $needle)) {
+                return $finding->severity;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ninguna CAPTCHA_* por opción puede sobrevivir entre pruebas: el env es
+     * estado global del proceso y contaminaría al resto de la suite.
+     */
+    private static function limpiarEnvPorOpcion(): void
+    {
+        foreach (Config::KEYS as $key) {
+            putenv('CAPTCHA_' . strtoupper($key));
+        }
     }
 
     private static function flat(DoctorReport $report): string
