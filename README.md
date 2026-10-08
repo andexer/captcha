@@ -52,7 +52,7 @@ vendor/bin/captcha doctor    # comprueba PHP, GD, config descubierto y endpoint
 
 `install` nunca sobrescribe un archivo existente. Eso es todo: instalación completa = `composer require` + (opcional) un archivo `.php` de configuración.
 
-> **Versión actual: candidata de publicación.** Lo publicado ahora es `1.0.0-rc.4` (pre-release): Composer no la ofrece sin pedir la estabilidad, así que hay que nombrarla: `composer require andexer/captcha:1.0.0-rc.4`. En producción, espera a `v1.0.0` y usa `^1.0`.
+> **Versión actual: candidata de publicación.** Lo publicado ahora es `1.0.0-rc.5` (pre-release): Composer no la ofrece sin pedir la estabilidad, así que hay que nombrarla: `composer require andexer/captcha:1.0.0-rc.5`. En producción, espera a `v1.0.0` y usa `^1.0`.
 
 ---
 

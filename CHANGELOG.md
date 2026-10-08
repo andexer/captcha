@@ -5,9 +5,15 @@ Las versiones se cortan con etiquetas de git (`v1.0.0-rc.1`), y
 `bin/captcha --version` lee la etiqueta; sin ella imprime la versión que
 declare el host que instaló el paquete.
 
-## [No publicado]
+## [1.0.0-rc.5] - 2026-10-08
 
-Cambios posteriores a `1.0.0-rc.4`, aún sin etiqueta.
+Quinta candidata de publicación. Silencia de `doctor` tapando una
+`CAPTCHA_CONFIG` rota corregido, y la asimetría de tipos del SDK documentada
+con test aferrador.
+
+```bash
+composer require andexer/captcha:1.0.0-rc.5
+```
 
 ### Corregido
 
