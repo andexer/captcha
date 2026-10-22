@@ -13,6 +13,8 @@
     --pc-reload-hover: #ffffff;
     --pc-focus-ring: rgba(59, 130, 246, .18);
     --pc-field: linear-gradient(180deg, #eef2f7 0%, #e7edf5 100%);
+    --pc-invalid-border: var(--pc-danger);
+    --pc-invalid-shadow: 0 0 0 3px rgba(180, 35, 24, .28);
 
     /* Flexbox, no grid: la fila [imagen | campo] es un solo conjunto y lo es
        en CUALQUIER viewport. El campo encoge y la imagen se escala antes de
@@ -184,6 +186,52 @@
     cursor: default;
 }
 
+/* Rechazo: mismo feedback que dispara el JS con reject() (o el servidor a
+   través de data-status). El borde rojo va en las piezas y el halo en el
+   grupo; las reglas van después de :focus-within para ganarle el foco.
+   Los colores salen del tema; el JS solo inyecta los suyos si el host los
+   configura. */
+.ct.ct--invalid {
+    border-radius: 10px;
+    box-shadow: var(--pc-invalid-shadow);
+}
+
+.ct.ct--invalid .ct__image-wrap,
+.ct.ct--invalid .ct__input {
+    border-color: var(--pc-invalid-border);
+}
+
+.ct.ct--invalid .ct__input {
+    caret-color: var(--pc-invalid-border);
+}
+
+/* Temblor corto en el contenedor entero. La duración y la amplitud las
+   fija el JS desde feedback.duration/feedback.distance. */
+.ct--shake {
+    animation: captcha-shake var(--pc-shake-duration, 900ms) cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes captcha-shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    15% {
+        transform: translateX(calc(var(--pc-shake-distance, 4px) * -1));
+    }
+    30% {
+        transform: translateX(var(--pc-shake-distance, 4px));
+    }
+    45% {
+        transform: translateX(calc(var(--pc-shake-distance, 4px) * -0.75));
+    }
+    60% {
+        transform: translateX(calc(var(--pc-shake-distance, 4px) * 0.75));
+    }
+    75% {
+        transform: translateX(calc(var(--pc-shake-distance, 4px) * -0.4));
+    }
+}
+
 .ct__error {
     flex: 1 1 100%;
     margin-top: 2px;
@@ -243,6 +291,7 @@
         --pc-reload-hover: #2a3242;
         --pc-focus-ring: rgba(96, 165, 250, .2);
         --pc-field: linear-gradient(180deg, #1d232e 0%, #171c24 100%);
+        --pc-invalid-shadow: 0 0 0 3px rgba(252, 165, 165, .3);
     }
 }
 
@@ -264,6 +313,7 @@
     --pc-reload-hover: #2a3242;
     --pc-focus-ring: rgba(96, 165, 250, .2);
     --pc-field: linear-gradient(180deg, #1d232e 0%, #171c24 100%);
+    --pc-invalid-shadow: 0 0 0 3px rgba(252, 165, 165, .3);
 }
 
 .ct[data-theme="light"] {
@@ -282,9 +332,15 @@
     --pc-reload-hover: #ffffff;
     --pc-focus-ring: rgba(59, 130, 246, .18);
     --pc-field: linear-gradient(180deg, #eef2f7 0%, #e7edf5 100%);
+    --pc-invalid-shadow: 0 0 0 3px rgba(180, 35, 24, .28);
 }
 
+/* El temblor vive en el contenedor .ct, no en un hijo: entra en la regla
+   para que prefers-reduced-motion también lo apague. */
 @media (prefers-reduced-motion: reduce) {
+    .ct,
+    .ct::before,
+    .ct::after,
     .ct *,
     .ct *::before,
     .ct *::after,

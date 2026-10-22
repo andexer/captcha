@@ -5,7 +5,7 @@
 | Área | Qué obtienes |
 |---|---|
 | **Cero dependencias** | Solo PHP >= 8.2 y `ext-gd`. No requiere doctrina, sesiones ajenas ni servicios externos. |
-| **Widget listo para usar** | `Captcha::widget()` imprime imagen + campo + botón de recarga con su propio CSS/JS empaquetados e inyectados *inline* (compatible con CSP estricta). |
+| **Widget listo para usar** | `Captcha::widget()` imprime imagen + campo + botón de recarga con su propio CSS/JS empaquetados e inyectados *inline* (compatible con CSP estricta), con feedback de rechazo (temblor + borde rojo) y recarga automática del reto. |
 | **Dos llamadas y listo** | `Captcha::widget()` en el formulario y `Captcha::check()` en el controlador del POST. Un único archivo de configuración opcional. |
 | **Captcha matemático** | El reto muestra `a + b`, `a − b`, `a × b` o `a ÷ b` y el usuario teclea el *resultado*. Dificultad graduable y rango de resultados (`between`). |
 | **Tipografía GD** | Fuentes bitmap integradas de GD (1 a 5), tamaño del glifo configurable. Sin archivos TTF. |

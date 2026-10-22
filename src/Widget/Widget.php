@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace Captcha\Widget;
 
 use Captcha\Result\CaptchaResult;
+use Captcha\Verification\Status;
 
 /**
  * Widget del lado servidor para el JavaScript incluido.
  *
  * Renderiza toda la UI del captcha (imagen, botón de recarga, input e id
  * oculto) como HTML estático con data attributes; sin script inline, así que
- * funciona bajo Content-Security-Policy estricta. El JavaScript solo recarga
- * la imagen.
+ * funciona bajo Content-Security-Policy estricta. El JavaScript recarga la
+ * imagen, aplica el feedback de rechazo y expone su propia API de opciones.
  *
  * El widget depende solo de su view model (WidgetModel) y del resultado
  * inyectado — no de la fachada — de modo que el renderizado queda
@@ -23,11 +24,17 @@ use Captcha\Result\CaptchaResult;
  */
 final class Widget
 {
+    /**
+     * @param Status|null $status Verificación fallida de la petición actual.
+     *                            Se emite como data-status para que el JS
+     *                            aplique el feedback sobre el reto nuevo.
+     */
     public function __construct(
         private readonly WidgetModel $model,
         private readonly WidgetOptions $options,
         private readonly ?CaptchaResult $result = null,
         private readonly ?string $error = null,
+        private readonly ?Status $status = null,
     ) {}
 
     public function render(): string
@@ -64,11 +71,26 @@ final class Widget
     private function renderWrapper(string $inner): string
     {
         return sprintf(
-            '<div class="ct" data-captcha data-endpoint="%s" data-theme="%s" role="group" aria-label="Captcha">%s</div>',
+            '<div class="ct" data-captcha data-endpoint="%s" data-theme="%s"%s role="group" aria-label="Captcha">%s</div>',
             htmlspecialchars($this->options->endpoint, ENT_QUOTES),
             htmlspecialchars($this->theme(), ENT_QUOTES),
+            $this->renderStatus(),
             $inner,
         );
+    }
+
+    /**
+     * El estado de verificación fallida viaja como data-status: el JS lo lee
+     * al arrancar y dispara el mismo feedback que un reject() manual. Un
+     * pase o una petición sin verificación no emiten nada.
+     */
+    private function renderStatus(): string
+    {
+        if ($this->result === null || $this->status === null || $this->status === Status::Ok) {
+            return '';
+        }
+
+        return sprintf(' data-status="%s"', htmlspecialchars($this->status->value, ENT_QUOTES));
     }
 
     /**

@@ -8,7 +8,9 @@ use Captcha\Captcha;
 use Captcha\Config\Config;
 use Captcha\Contract\RateLimiterInterface;
 use Captcha\Contract\RendererInterface;
+use Captcha\Result\CaptchaResult;
 use Captcha\Storage\ArrayStorage;
+use Captcha\Verification\Status;
 use Captcha\Widget\Widget;
 use Captcha\Widget\WidgetModel;
 use Captcha\Widget\WidgetOptions;
@@ -227,17 +229,55 @@ final class WidgetTest extends TestCase
             new WidgetOptions(endpoint: '/captcha/generate'),
             null,
             'Demasiados captchas generados <script>alert(1)</script>',
+            Status::Invalid,
         );
 
         $html = $widget->render();
 
         self::assertStringContainsString('data-captcha', $html);
+        self::assertStringNotContainsString('data-status', $html, 'Sin reto no hay feedback que animar');
         self::assertStringContainsString('data-endpoint="/captcha/generate"', $html);
         self::assertStringContainsString('Demasiados captchas generados &lt;script&gt;', $html);
         self::assertStringNotContainsString('<script>alert', $html);
         self::assertStringNotContainsString('ct__image', $html);
         self::assertStringNotContainsString('ct__input', $html);
         self::assertStringNotContainsString('name="captcha_id"', $html);
+    }
+
+    public function testRenderMarksFailedVerificationForClientFeedback(): void
+    {
+        $widget = new Widget(
+            WidgetModel::fromConfig(new Config()),
+            new WidgetOptions(),
+            new CaptchaResult('id', "\x89PNG\r\n\x1a\nfake", 'image/png'),
+            null,
+            Status::Invalid,
+        );
+
+        $html = $widget->render();
+
+        self::assertStringContainsString('data-status="invalid"', $html);
+        self::assertStringContainsString('class="ct__image"', $html);
+    }
+
+    public function testRenderOmitsStatusWhenVerificationPassed(): void
+    {
+        $widget = new Widget(
+            WidgetModel::fromConfig(new Config()),
+            new WidgetOptions(),
+            new CaptchaResult('id', "\x89PNG\r\n\x1a\nfake", 'image/png'),
+            null,
+            Status::Ok,
+        );
+
+        self::assertStringNotContainsString('data-status', $widget->render());
+    }
+
+    public function testRenderOmitsStatusOnIdleRequests(): void
+    {
+        $html = $this->captcha(new Config(injectAssets: false))->widget();
+
+        self::assertStringNotContainsString('data-status', $html);
     }
 
     public function testWidgetRejectsUnknownOptionWithSpanishMessage(): void

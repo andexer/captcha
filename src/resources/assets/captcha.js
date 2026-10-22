@@ -7,77 +7,211 @@
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
-    var VERSION = '1.0.0';
-    var TIMEOUT = 8000;
+    var VERSION = '1.1.0';
 
     var MESSAGES = {
+        invalid: 'Código captcha incorrecto.',
+        expired: 'El código captcha ha caducado.',
+        missing: 'Código captcha no encontrado.',
+        blocked: 'Demasiados intentos, espera unos segundos y vuelve a intentarlo.',
         reloadError: 'No se pudo recargar el captcha.',
     };
 
-    /**
-     * Wire-up para cada widget [data-captcha].
-     * Solo recarga la imagen (modo servidor); la verificación ocurre
-     * en el POST clásico del formulario.
-     */
-    function Widget(element) {
+    /*
+    *  Opciones por defecto. Todo es sustituible con Captcha.configure()
+    *  (global), con el atributo data-captcha-options del widget o con el
+    *  segundo argumento del constructor. Sin tocar nada, el widget se
+    *  comporta como siempre: recarga contra data-endpoint y muestra el error
+    *  en la banda .ct__error.
+    */
+    function defaultOptions() {
+        return {
+            endpoint: '',
+            timeout: 8000,
+            reloadOnFail: true,
+            clearOnFail: true,
+            focusOnFail: true,
+            feedback: {
+                invalidClass: 'ct--invalid',
+                shakeClass: 'ct--shake',
+                shake: true,
+                duration: 900,
+                distance: 4,
+                borderColor: '',
+                shadow: '',
+            },
+            messages: {
+                invalid: MESSAGES.invalid,
+                expired: MESSAGES.expired,
+                missing: MESSAGES.missing,
+                blocked: MESSAGES.blocked,
+                reloadError: MESSAGES.reloadError,
+            },
+            onReject: null,
+            onRefresh: null,
+            onError: null,
+        };
+    }
+
+    var config = defaultOptions();
+
+    function isObject(value) {
+        return value !== null && typeof value === 'object' && !Array.isArray(value);
+    }
+
+    /*
+    *  Fusión de un nivel para feedback/messages y superficial para el resto:
+    *  configure({ feedback: { duration: 800 } }) no borra el resto de ajustes
+    *  de feedback. Los valores undefined se ignoran para que un objeto parcial
+    *  no pise defaults ni opciones ya fijadas.
+    */
+    function mergeOptions(base, extra) {
+        var result = {};
+        var key;
+
+        for (key in base) {
+            if (Object.prototype.hasOwnProperty.call(base, key)) {
+                result[key] = base[key];
+            }
+        }
+
+        if (!isObject(extra)) {
+            return result;
+        }
+
+        for (key in extra) {
+            if (!Object.prototype.hasOwnProperty.call(extra, key) || extra[key] === undefined) {
+                continue;
+            }
+
+            if ((key === 'feedback' || key === 'messages') && isObject(extra[key])) {
+                result[key] = mergeOptions(isObject(base[key]) ? base[key] : {}, extra[key]);
+
+                continue;
+            }
+
+            result[key] = extra[key];
+        }
+
+        return result;
+    }
+
+    function configure(options) {
+        config = mergeOptions(config, options);
+
+        return mergeOptions(defaultOptions(), config);
+    }
+
+    function settings() {
+        return mergeOptions(defaultOptions(), config);
+    }
+
+    /*
+    *  Opciones declarativas del propio markup: data-captcha-options acepta
+    *  un JSON con cualquier clave (útil cuando el widget lo pinta el host y
+    *  no hay una llamada JS donde pasar opciones). data-endpoint y
+    *  data-refresh-on-fail mantienen su forma corta.
+    */
+    function dataOptions(element) {
+        var raw = element.getAttribute('data-captcha-options');
+        var options = {};
+
+        if (raw && typeof JSON !== 'undefined') {
+            try {
+                options = JSON.parse(raw) || {};
+            } catch (error) {
+                options = {};
+            }
+        }
+
+        var endpoint = element.getAttribute('data-endpoint');
+        if (endpoint) {
+            options.endpoint = endpoint;
+        }
+
+        var refresh = element.getAttribute('data-refresh-on-fail');
+        if (refresh === 'true' || refresh === 'false') {
+            options.reloadOnFail = refresh === 'true';
+        }
+
+        return options;
+    }
+
+    function withAction(endpoint) {
+        var glue = endpoint.indexOf('?') === -1 ? '?' : '&';
+
+        return endpoint + glue + 'action=generate';
+    }
+
+    /*
+    *  Un widget por cada [data-captcha]. La instancia se guarda en el propio
+    *  elemento (element.__captcha) para que Captcha.get() y el auto-init sean
+    *  idempotentes.
+    */
+    function Widget(element, options) {
+        if (!element) {
+            throw new Error('Captcha.Widget requiere un elemento contenedor.');
+        }
+
         this.el = element;
-        this.endpoint = element.getAttribute('data-endpoint') || '';
+        this.opts = mergeOptions(mergeOptions(settings(), dataOptions(element)), options);
+        this.endpoint = this.opts.endpoint;
         this.img = element.querySelector('.ct__image');
         this.reload = element.querySelector('.ct__reload');
         this.input = element.querySelector('.ct__input');
         this.hiddenId = element.querySelector('input[type="hidden"]');
         this.error = element.querySelector('.ct__error');
         this.reloading = false;
-        this.bind();
-    }
+        this.bound = [];
+        this.feedbackTimer = null;
 
-    function withAction(endpoint) {
-        var glue = endpoint.indexOf('?') === -1 ? '?' : '&';
-        return endpoint + glue + 'action=generate';
+        element.__captcha = this;
+        this.bind();
+        this.consumeStatus();
     }
 
     Widget.prototype.bind = function () {
         var self = this;
 
         if (this.reload) {
-            this.reload.addEventListener('click', function (e) {
-                e.preventDefault();
+            this.listen(this.reload, 'click', function (event) {
+                event.preventDefault();
                 self.refresh();
             });
         }
 
         if (this.img) {
             this.img.style.cursor = 'pointer';
-            this.img.addEventListener('click', function () {
+            this.listen(this.img, 'click', function () {
                 self.refresh();
             });
         }
     };
 
+    Widget.prototype.listen = function (target, type, handler) {
+        target.addEventListener(type, handler);
+        this.bound.push({ target: target, type: type, handler: handler });
+    };
+
+    /*
+    *  La petición al endpoint: mismo contrato de siempre (GET ?action=generate
+    *  con JSON), pero con las opciones, los callbacks y los eventos del
+    *  widget. Si no hay endpoint o fetch no existe, se recarga la página.
+    */
     Widget.prototype.refresh = function () {
         if (this.reloading) {
-            return;
+            return this;
         }
 
-        /*
-        *  Sin endpoint servido (instalación mínima): la recarga se resuelve
-        *  re-renderizando la página, así el widget sigue siendo utilizable
-        *  out-of-the-box sin copiar ningún archivo.
-        */
-        if (!this.endpoint) {
-            this.reloadPage();
-
-            return;
+        if (this.feedbackTimer) {
+            clearTimeout(this.feedbackTimer);
+            this.feedbackTimer = null;
         }
 
-        /*
-        *  Sin fetch (navegadores antiguos): la recarga se resuelve
-        *  re-renderizando la página, igual que si no hubiera endpoint.
-        */
-        if (typeof fetch !== 'function') {
+        if (!this.endpoint || typeof fetch !== 'function') {
             this.reloadPage();
 
-            return;
+            return this;
         }
 
         this.reloading = true;
@@ -88,7 +222,7 @@
         var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
         var timer = controller ? setTimeout(function () {
             controller.abort();
-        }, TIMEOUT) : null;
+        }, this.opts.timeout) : null;
 
         var options = {
             method: 'GET',
@@ -105,25 +239,14 @@
                     function (data) {
                         if (!response.ok) {
                             if (data && data.error) {
-                                /*
-                                *  El endpoint respondió: error real (p. ej.
-                                *  rate limit 429) con mensaje en español;
-                                *  no se recarga la página porque eso no lo
-                                *  resolvería.
-                                */
                                 throw { serverError: data.error };
                             }
-                            /*
-                            *  Respuesta sin JSON útil: endpoint ausente o roto.
-                            */
                             throw { endpointMissing: true };
                         }
+
                         return data;
                     },
                     function () {
-                        /*
-                        *  El body no es JSON (p. ej. 404 del servidor web).
-                        */
                         throw { endpointMissing: true };
                     },
                 );
@@ -141,16 +264,17 @@
                     self.input.focus();
                 }
 
+                self.el.removeAttribute('data-status');
+                self.clearInvalid();
+
                 if (!self.img) {
-                    self.reloading = false;
-                    self.setBusy(false);
+                    self.finishRefresh(data);
 
                     return;
                 }
 
                 var settle = function () {
-                    self.reloading = false;
-                    self.setBusy(false);
+                    self.finishRefresh(data);
                 };
                 self.img.addEventListener('load', settle, { once: true });
                 self.img.addEventListener('error', settle, { once: true });
@@ -161,7 +285,7 @@
                 self.setBusy(false);
 
                 if (reason && reason.serverError) {
-                    self.showError(reason.serverError);
+                    self.fail(reason.serverError);
 
                     return;
                 }
@@ -177,6 +301,133 @@
                     clearTimeout(timer);
                 }
             });
+
+        return this;
+    };
+
+    Widget.prototype.finishRefresh = function (data) {
+        this.reloading = false;
+        this.setBusy(false);
+        this.clearError();
+        this.notify('onRefresh', data);
+        this.emit('captcha:refresh', data);
+    };
+
+    /*
+    *  Rechazo con feedback y recarga automática. message === '' mantiene la
+    *  banda de error como esté (el host ya pinta su propio mensaje); sin
+    *  mensaje se usa el texto del status en los messages configurados.
+    *  options.refresh permite decidir en la llamada si se pide un reto nuevo.
+    */
+    Widget.prototype.reject = function (message, status, options) {
+        var resolvedStatus = typeof status === 'string' && status !== '' ? status : 'invalid';
+        var text = message;
+
+        if (text === undefined || text === null) {
+            text = this.opts.messages[resolvedStatus] || this.opts.messages.invalid;
+        }
+
+        if (text) {
+            this.showError(text);
+        }
+
+        if (this.opts.clearOnFail) {
+            this.clearCode();
+        }
+
+        this.markInvalid();
+
+        var detail = { status: resolvedStatus, message: text };
+        this.notify('onReject', detail);
+        this.emit('captcha:reject', detail);
+
+        var refresh = isObject(options) && options.refresh !== undefined
+            ? options.refresh
+            : this.opts.reloadOnFail;
+        var self = this;
+
+        if (this.feedbackTimer) {
+            clearTimeout(this.feedbackTimer);
+        }
+
+        this.feedbackTimer = setTimeout(function () {
+            self.feedbackTimer = null;
+            self.clearInvalid();
+
+            if (refresh) {
+                self.refresh();
+            } else if (self.input && self.opts.focusOnFail) {
+                self.input.focus();
+            }
+        }, this.opts.feedback.duration);
+
+        return this;
+    };
+
+    Widget.prototype.markInvalid = function () {
+        var feedback = this.opts.feedback;
+
+        this.el.style.setProperty('--pc-shake-duration', feedback.duration + 'ms');
+        this.el.style.setProperty('--pc-shake-distance', feedback.distance + 'px');
+
+        if (feedback.borderColor) {
+            this.el.style.setProperty('--pc-invalid-border', feedback.borderColor);
+        }
+        if (feedback.shadow) {
+            this.el.style.setProperty('--pc-invalid-shadow', feedback.shadow);
+        }
+
+        this.el.classList.remove(feedback.invalidClass);
+        this.el.classList.remove(feedback.shakeClass);
+
+        /* Lectura forzada: reinicia la animación si el rechazo se repite. */
+        void this.el.offsetWidth;
+
+        this.el.classList.add(feedback.invalidClass);
+        if (feedback.shake) {
+            this.el.classList.add(feedback.shakeClass);
+        }
+
+        if (this.input) {
+            this.input.setAttribute('aria-invalid', 'true');
+        }
+    };
+
+    Widget.prototype.clearInvalid = function () {
+        var feedback = this.opts.feedback;
+
+        this.el.classList.remove(feedback.invalidClass);
+        this.el.classList.remove(feedback.shakeClass);
+        this.el.style.removeProperty('--pc-invalid-border');
+        this.el.style.removeProperty('--pc-invalid-shadow');
+
+        if (this.input) {
+            this.input.removeAttribute('aria-invalid');
+        }
+    };
+
+    /*
+    *  data-status lo emite el servidor cuando el POST recién verificado no
+    *  pasó. El servidor ya renderizó un reto nuevo, así que por defecto el
+    *  widget solo anima y limpia el campo: pedir otro reto al endpoint sería
+    *  duplicar la generación sin necesidad. data-refresh-on-fail="true" lo
+    *  activa para quien lo quiera. data-message es opcional; si no está, el
+    *  host sigue mostrando su mensaje.
+    */
+    Widget.prototype.consumeStatus = function () {
+        var status = this.el.getAttribute('data-status');
+
+        if (!status || status === 'ok') {
+            return;
+        }
+
+        var message = this.el.getAttribute('data-message') || '';
+        var refresh = this.el.getAttribute('data-refresh-on-fail') === 'true';
+
+        /* Se consume: un re-init del widget no debe repetir la animación. */
+        this.el.removeAttribute('data-status');
+
+        this.reject(message, status, { refresh: refresh });
     };
 
     Widget.prototype.showError = function (message) {
@@ -191,18 +442,32 @@
         }
     };
 
+    Widget.prototype.clearCode = function () {
+        if (this.input) {
+            this.input.value = '';
+        }
+    };
+
+    Widget.prototype.fail = function (message) {
+        this.showError(message);
+        this.notify('onError', message);
+        this.emit('captcha:error', { message: message });
+    };
+
     /*
-    *  Último recurso sin endpoint: se vuelve a renderizar la página, lo que
-    *  genera un captcha nuevo en el servidor (out-of-the-box en el estado más
-    *  mínimo posible).
+    *  Último recurso sin endpoint: se vuelve a pedir la página por GET, lo
+    *  que genera un captcha nuevo en el servidor (out-of-the-box en el estado
+    *  más mínimo posible). replace() en vez de reload(): sobre una respuesta
+    *  POST, reload() reenvía el formulario y puede encadenar rechazos.
     */
     Widget.prototype.reloadPage = function () {
-        if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
-            window.location.reload();
+        if (typeof window !== 'undefined' && typeof window.location !== 'undefined'
+            && typeof window.location.replace === 'function') {
+            window.location.replace(window.location.href);
 
             return;
         }
-        this.showError(MESSAGES.reloadError);
+        this.fail(this.opts.messages.reloadError);
     };
 
     Widget.prototype.setBusy = function (busy) {
@@ -221,14 +486,104 @@
         }
     };
 
-    function autoInit() {
-        var nodes = document.querySelectorAll('[data-captcha]');
-        for (var i = 0; i < nodes.length; i++) {
-            if (!nodes[i].__captcha) {
-                nodes[i].__captcha = new Widget(nodes[i]);
-            }
+    Widget.prototype.notify = function (name, detail) {
+        var callback = this.opts[name];
+
+        if (typeof callback === 'function') {
+            callback(this, detail);
         }
+    };
+
+    Widget.prototype.emit = function (name, detail) {
+        if (typeof CustomEvent !== 'function' || typeof this.el.dispatchEvent !== 'function') {
+            return;
+        }
+
+        this.el.dispatchEvent(new CustomEvent(name, { detail: detail, bubbles: true }));
+    };
+
+    Widget.prototype.destroy = function () {
+        if (this.feedbackTimer) {
+            clearTimeout(this.feedbackTimer);
+            this.feedbackTimer = null;
+        }
+
+        for (var i = 0; i < this.bound.length; i++) {
+            this.bound[i].target.removeEventListener(this.bound[i].type, this.bound[i].handler);
+        }
+
+        this.bound = [];
+        this.clearInvalid();
+
+        if (this.el.__captcha === this) {
+            delete this.el.__captcha;
+        }
+    };
+
+    function get(target) {
+        if (typeof target === 'string') {
+            if (typeof document === 'undefined') {
+                return null;
+            }
+            target = document.querySelector(target);
+        }
+
+        if (!target) {
+            return null;
+        }
+
+        return target.__captcha || new Widget(target);
     }
+
+    /*
+    *  Inicializa todos los [data-captcha] del ámbito (el documento por
+    *  defecto) y devuelve las instancias. Volver a llamarlo no duplica
+    *  widgets: get() reutiliza la instancia guardada en el elemento.
+    */
+    function init(root) {
+        var scope = root;
+
+        if (!scope || typeof scope.querySelectorAll !== 'function') {
+            scope = typeof document !== 'undefined' ? document : null;
+        }
+
+        if (!scope) {
+            return [];
+        }
+
+        var nodes = scope.querySelectorAll('[data-captcha]');
+        var widgets = [];
+
+        for (var i = 0; i < nodes.length; i++) {
+            widgets.push(get(nodes[i]));
+        }
+
+        return widgets;
+    }
+
+    function reject(target, message, status, options) {
+        var widget = get(target);
+
+        return widget ? widget.reject(message, status, options) : null;
+    }
+
+    function refresh(target) {
+        var widget = get(target);
+
+        return widget ? widget.refresh() : null;
+    }
+
+    var api = {
+        version: VERSION,
+        Widget: Widget,
+        defaults: settings,
+        configure: configure,
+        get: get,
+        init: init,
+        autoInit: init,
+        reject: reject,
+        refresh: refresh,
+    };
 
     /*
     *  El guard document/window mantiene el UMD seguro en Node (module.exports):
@@ -238,17 +593,13 @@
     */
     if (typeof document !== 'undefined' && typeof window !== 'undefined') {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', autoInit);
+            document.addEventListener('DOMContentLoaded', init);
         } else {
-            autoInit();
+            init();
         }
-        document.addEventListener('load', autoInit);
-        window.addEventListener('load', autoInit);
+        document.addEventListener('load', init);
+        window.addEventListener('load', init);
     }
 
-    return {
-        version: VERSION,
-        Widget: Widget,
-        autoInit: autoInit,
-    };
+    return api;
 }));

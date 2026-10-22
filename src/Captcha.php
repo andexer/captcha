@@ -486,9 +486,27 @@ final class Captcha
             WidgetOptions::fromArray($options),
             $this->widgetChallenge,
             $this->widgetError,
+            $this->falloDeVerificacion(),
         ))->render();
 
         return $this->config->injectAssets ? $this->assets->once() . $html : $html;
+    }
+
+    /**
+     * El estado de una verificación fallida ya resuelta en esta petición.
+     *
+     * Solo se lee el flujo cacheado: un widget() jamás dispara la
+     * verificación por su cuenta. La salida viaja como data-status del
+     * widget y el JS aplica el feedback (temblor y borde rojo) sobre el reto
+     * nuevo que este mismo render acaba de emitir.
+     */
+    private function falloDeVerificacion(): ?Status
+    {
+        if (!Globals::isPost() || $this->flow === null || $this->flow->passed()) {
+            return null;
+        }
+
+        return $this->flow->status;
     }
 
     /**

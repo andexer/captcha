@@ -5,6 +5,38 @@ Las versiones se cortan con etiquetas de git (`v1.0.0-rc.1`), y
 `bin/captcha --version` lee la etiqueta; sin ella imprime la versión que
 declare el host que instaló el paquete.
 
+## [1.1.0] - 2026-10-22
+
+### Añadido
+
+- **API JavaScript del widget.** El asset pasa a una API orientada a objetos
+  (`Captcha.configure()`, `Captcha.Widget`, `Captcha.get()`, `Captcha.init()`,
+  `Captcha.reject()`, `Captcha.refresh()`), con opciones por defecto para
+  endpoint, timeout, recarga, feedback y mensajes, callbacks (`onReject`,
+  `onRefresh`, `onError`), eventos (`captcha:reject`, `captcha:refresh`,
+  `captcha:error`) y ajustes declarativos por widget (`data-captcha-options`).
+  Sin configurar nada se comporta como antes.
+- **Feedback de rechazo y reto nuevo tras un fallo.** El servidor marca el
+  widget rechazado con `data-status`; el JS aplica borde rojo y temblor de
+  900 ms sobre el reto nuevo que ya emitió el render. En flujos fetch,
+  `Captcha.reject(el, message, status)` pide además un reto al endpoint y
+  actualiza el id oculto, así que el reintento del usuario ya no llega con un
+  captcha consumido. `prefers-reduced-motion` desactiva el temblor.
+
+### Cambiado
+
+- **Config por defecto de Janssen.** La plantilla que escribe
+  `install --framework=janssen` llega con 5 generaciones por IP cada 300 s y
+  10 verificaciones (antes 30 generaciones), manteniendo el reto aritmético
+  `+`/`-` entre 0 y 20. El resto de plantillas no cambia.
+
+### Corregido
+
+- **Reintento inválido tras un fallo en asíncrono.** Sin recarga de página,
+  el cliente reutilizaba el reto de un único uso y el segundo intento
+  (incluso con la respuesta correcta) se rechazaba. El rechazo ahora emite
+  un reto nuevo antes de devolver el control.
+
 ## [1.0.0] - 2026-10-08
 
 Primera versión estable. Sin cambios de API respecto a `1.0.0-rc.6`.

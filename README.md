@@ -22,7 +22,7 @@ Todo *visible al usuario* — mensajes de verificación, errores, la consola y l
 | Área | Qué obtienes |
 |---|---|
 | **Cero dependencias** | Solo PHP >= 8.2 y `ext-gd`. Sin servicios externos ni sesiones ajenas. |
-| **Widget listo para usar** | Imagen + campo + botón de recarga con CSS/JS empaquetados, inyectados *inline* (CSP estricta). |
+| **Widget listo para usar** | Imagen + campo + botón de recarga con CSS/JS empaquetados, inyectados *inline* (CSP estricta), feedback de rechazo (temblor y borde rojo) y recarga automática del reto. |
 | **Dos llamadas y listo** | `Captcha::widget()` en el formulario y `Captcha::check()` en el POST. Config opcional. |
 | **Captcha matemático** | El reto puede ser `a + b`, `a − b`, `a × b` o `a ÷ b`; el usuario teclea el resultado. |
 | **Anti-spam de verdad** | Rate limit dual por IP + sesión activo por defecto, fail-closed, honeypot opcional. |
@@ -52,7 +52,7 @@ vendor/bin/captcha doctor    # comprueba PHP, GD, config descubierto y endpoint
 
 `install` nunca sobrescribe un archivo existente. Eso es todo: instalación completa = `composer require` + (opcional) un archivo `.php` de configuración.
 
-> **Versión actual: candidata de publicación.** Lo publicado ahora es `1.0.0-rc.6` (pre-release): Composer no la ofrece sin pedir la estabilidad, así que hay que nombrarla: `composer require andexer/captcha:1.0.0-rc.6`. En producción, espera a `v1.0.0` y usa `^1.0`.
+> **Versión actual: 1.1.0.** `composer require andexer/captcha` instala la última estable; para fijar la serie usa `^1.1`.
 
 ---
 
@@ -103,7 +103,7 @@ try {
 | [Características](docs/caracteristicas.md) | Tabla detallada, flujo completo del reto y reglas de seguridad. |
 | [Tipos de captcha](docs/tipos-de-captcha.md) | Dígitos, modo aritmético, `between`, tipografía GD. |
 | [Configuración](docs/configuracion.md) | Descubrimiento, presets, tabla completa de opciones, `Config`, validaciones. |
-| [API](docs/api.md) | Métodos públicos, widget, endpoint AJAX, almacenamiento, excepciones, contratos. |
+| [API](docs/api.md) | Métodos públicos, widget, API JavaScript, endpoint AJAX, almacenamiento, excepciones, contratos. |
 | [Seguridad](docs/seguridad.md) | Rate limiting, proxies de confianza, honeypot, endurecimiento, `CaptchaGuard`. |
 | [Integración](docs/integracion.md) | PHP plano, CodeIgniter, Laravel, Symfony, CakePHP, Yii, Yii 3 y Janssen. |
 | [Consola](docs/cli.md) | `install`, `doctor`, alias, dry-run, códigos de salida. |

@@ -649,6 +649,72 @@ final class CaptchaTest extends TestCase
         self::assertTrue($storage->has($a[1]), 'Debe almacenarse exactamente una entrada de reto');
     }
 
+    public function testWidgetEmitsFailedStatusForClientFeedback(): void
+    {
+        $storage = new ArrayStorage();
+        $captcha = new Captcha(
+            storage: $storage,
+            renderer: $this->rendererStub(),
+            rateLimiter: $this->rateLimiterOff(),
+        );
+        $challenge = $captcha->generate();
+
+        $this->withRequestMethod('POST', function () use ($captcha, $challenge): void {
+            $this->withPost($captcha, ['captcha_id' => $challenge->getId(), 'captcha' => '00000'], function () use ($captcha): void {
+                self::assertFalse($captcha->check()->passed);
+
+                $html = $captcha->widget();
+
+                self::assertStringContainsString(
+                    'data-status="invalid"',
+                    $html,
+                    'El widget debe marcar el rechazo para que el JS anime y recargue el reto',
+                );
+            });
+        });
+    }
+
+    public function testWidgetDoesNotVerifyOnItsOwn(): void
+    {
+        $storage = new ArrayStorage();
+        $captcha = new Captcha(
+            storage: $storage,
+            config: new Config(injectAssets: false),
+            renderer: $this->rendererStub(),
+            rateLimiter: $this->rateLimiterOff(),
+        );
+        $challenge = $captcha->generate();
+        $code = (string) $storage->get($challenge->getId());
+
+        $this->withRequestMethod('POST', function () use ($captcha, $storage, $challenge, $code): void {
+            $this->withPost($captcha, ['captcha_id' => $challenge->getId(), 'captcha' => $code], function () use ($captcha, $storage, $challenge): void {
+                $html = $captcha->widget();
+
+                self::assertStringNotContainsString('data-status', $html, 'Sin verificación previa no hay estado que marcar');
+                self::assertTrue(
+                    $storage->has($challenge->getId()),
+                    'widget() no debe consumir el reto: la verificación es cosa de check()/valid()/verify()',
+                );
+            });
+        });
+    }
+
+    public function testWidgetOmitsFailedStatusOutsidePost(): void
+    {
+        $captcha = new Captcha(
+            storage: new ArrayStorage(),
+            config: new Config(injectAssets: false),
+            renderer: $this->rendererStub(),
+            rateLimiter: $this->rateLimiterOff(),
+        );
+
+        $this->withRequestMethod('GET', function () use ($captcha): void {
+            self::assertFalse($captcha->check()->submitted);
+
+            self::assertStringNotContainsString('data-status', $captcha->widget());
+        });
+    }
+
     public function testToStringRendersTheWidget(): void
     {
         $html = (string) (new Captcha(storage: new ArrayStorage(), renderer: $this->rendererStub()));
